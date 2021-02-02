@@ -1,15 +1,25 @@
 import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.JoinFunction;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.RichProcessWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.triggers.Trigger;
+import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
+import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.PriorityQueue;
 
@@ -53,7 +63,7 @@ public class onlinePartitioningForSsj {
                 for(Map.Entry<Integer, Tuple3<Long, String, Double[]>> centroid : partitions.entrySet()){
                     Double dist = SimilarityJoinsUtil.CosineDistance(emb, centroid.getValue().f2);
                     distances.add(new Tuple2<>(centroid.getKey(),dist));
-                    if (dist < dist_thresh){
+                    if (dist <= dist_thresh){
                         collector.collect(new Tuple5<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2));
 
                     }
@@ -82,6 +92,81 @@ public class onlinePartitioningForSsj {
         }
     }
 
+    public static class CustomOnElementTrigger extends Trigger<Tuple5<Integer,String,Long,Integer,String>, GlobalWindow>{
+
+        @Override
+        public TriggerResult onElement(Tuple5<Integer,String,Long,Integer,String> t, long l, GlobalWindow window, TriggerContext triggerContext) throws Exception {
+            return TriggerResult.FIRE;
+        }
+
+        @Override
+        public TriggerResult onProcessingTime(long l, GlobalWindow window, TriggerContext triggerContext) throws Exception {
+            return null;
+        }
+
+        @Override
+        public TriggerResult onEventTime(long l, GlobalWindow window, TriggerContext triggerContext) throws Exception {
+            return null;
+        }
+
+        @Override
+        public void clear(GlobalWindow window, TriggerContext triggerContext) throws Exception {
+
+        }
+    }
+
+    public static class SimilarityJoin extends ProcessWindowFunction<Tuple5<Integer,String,Long,Integer,String>,
+                    Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>,Tuple5<Integer,String,Long,Integer,String>>,
+                    Integer,
+                    GlobalWindow> {
+
+        HashMap<String, Double[]> wordEmbeddings;
+        Double dist_thresh;
+
+        public SimilarityJoin(String file4WE, Double dist_thresh)throws Exception{
+            this.wordEmbeddings = SimilarityJoinsUtil.readEmbeddings(file4WE);
+            this.dist_thresh = dist_thresh;
+        }
+
+
+        @Override
+        public void process(Integer integer,
+                          Context ctx,
+                          Iterable<Tuple5<Integer, String, Long, Integer, String>> tuples,
+                          Collector<Tuple3<Boolean,
+                                  Tuple5<Integer, String, Long, Integer, String>,
+                                  Tuple5<Integer, String, Long, Integer, String>>> collector)
+                throws Exception {
+
+            Iterator<Tuple5<Integer, String, Long, Integer, String>> tuplesIterator = tuples.iterator();
+            Tuple5<Integer, String, Long, Integer, String> newTuple = tuplesIterator.next();
+            Double[] newTupleEmbed = wordEmbeddings.get(newTuple.f4);
+
+            for (Iterator<Tuple5<Integer, String, Long, Integer, String>> it = tuplesIterator; it.hasNext(); ) {
+
+                Tuple5<Integer, String, Long, Integer, String> t = it.next();
+
+                boolean exp = (
+                        (newTuple.f1.equals("inner") && t.f1.equals("inner")) ||
+                                (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
+                                (newTuple.f1.equals("outlier") && t.f1.equals("outlier")) ||
+                                (newTuple.f1.equals("inner") && t.f1.equals("outer"))
+                        );
+
+                if (exp){
+                    Double[] tEmbed = wordEmbeddings.get(t.f4);
+                    collector.collect(
+                            new Tuple3<>(
+                                    (SimilarityJoinsUtil.CosineDistance(newTupleEmbed, tEmbed) < dist_thresh),
+                                    newTuple,
+                                    t
+                            )
+                        );
+                }
+            }
+        }
+    }
+
     public static void main(String[] args) throws Exception{
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -93,9 +178,16 @@ public class onlinePartitioningForSsj {
         DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream();
 
         DataStream<Tuple5<Integer,String,Long,Integer,String>> partitionedData = data
-                .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3))
-                .keyBy(t -> t.f0);
-        partitionedData.print();
+                .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3));
+
+        DataStream<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>,Tuple5<Integer,String,Long,Integer,String>>>
+                selfJoinedStream = partitionedData
+                .keyBy(t-> t.f0)
+                .window(GlobalWindows.create())
+                .trigger(new CustomOnElementTrigger())
+                .process(new SimilarityJoin("wiki-news-300d-1K.vec", 0.3));
+
+        selfJoinedStream.print();
 
         LOG.info(env.getExecutionPlan());
 
