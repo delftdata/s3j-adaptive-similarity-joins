@@ -1,3 +1,4 @@
 /src/main/resources/log.out
 /src/main/resources/wiki-news-300d-1M.vec
 /target/
+src/main/outputs/stats.txt

@@ -1,9 +1,16 @@
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.JoinFunction;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
@@ -14,14 +21,12 @@ import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
+import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.PriorityQueue;
+import java.util.*;
 
 
 public class onlinePartitioningForSsj {
@@ -63,21 +68,21 @@ public class onlinePartitioningForSsj {
                 for(Map.Entry<Integer, Tuple3<Long, String, Double[]>> centroid : partitions.entrySet()){
                     Double dist = SimilarityJoinsUtil.CosineDistance(emb, centroid.getValue().f2);
                     distances.add(new Tuple2<>(centroid.getKey(),dist));
-                    if (dist <= dist_thresh){
+                    if (dist <= 0.5*dist_thresh){
                         collector.collect(new Tuple5<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2));
 
                     }
-                    else if (dist < 2*dist_thresh){
+                    else if (dist < 1.5*dist_thresh){
                         collector.collect(new Tuple5<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2));
                     }
                 }
                 try {
-                    if (distances.peek().f1 > 2*dist_thresh){
+                    if (distances.peek().f1 > dist_thresh){
                         partitions.put(part_num + 1, new Tuple3<>(t.f0, t.f2, emb));
                         collector.collect(new Tuple5<>(part_num + 1, "inner", t.f0, t.f1, t.f2));
                     }
                     else {
-                        if (distances.peek().f1 > dist_thresh) {
+                        if (distances.peek().f1 > 0.5*dist_thresh) {
                             partitions.put(part_num + 1, new Tuple3<>(t.f0, t.f2, emb));
                             collector.collect(
                                     new Tuple5<Integer, String, Long, Integer, String>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2));
@@ -139,15 +144,15 @@ public class onlinePartitioningForSsj {
                 throws Exception {
 
             Iterator<Tuple5<Integer, String, Long, Integer, String>> tuplesIterator = tuples.iterator();
-            Tuple5<Integer, String, Long, Integer, String> newTuple = tuplesIterator.next();
+            LinkedList<Tuple5<Integer, String, Long, Integer, String>> tuplesList = new LinkedList<>();
+            tuplesIterator.forEachRemaining(tuplesList::addFirst);
+
+            Tuple5<Integer, String, Long, Integer, String> newTuple = tuplesList.pollFirst();
             Double[] newTupleEmbed = wordEmbeddings.get(newTuple.f4);
 
-            for (Iterator<Tuple5<Integer, String, Long, Integer, String>> it = tuplesIterator; it.hasNext(); ) {
-
-                Tuple5<Integer, String, Long, Integer, String> t = it.next();
+            for (Tuple5<Integer, String, Long, Integer, String> t : tuplesList ) {
 
                 boolean exp = (
-                        (newTuple.f1.equals("inner") && t.f1.equals("inner")) ||
                                 (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
                                 (newTuple.f1.equals("outlier") && t.f1.equals("outlier")) ||
                                 (newTuple.f1.equals("inner") && t.f1.equals("outer"))
@@ -163,9 +168,79 @@ public class onlinePartitioningForSsj {
                             )
                         );
                 }
+                else if(newTuple.f1.equals("inner") && t.f1.equals("inner")){
+                    collector.collect(
+                            new Tuple3<>(
+                                    true,
+                                    newTuple,
+                                    t
+                            )
+                    );
+                }
             }
         }
     }
+
+    static public class CustomFiltering extends ProcessFunction<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>>,Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>>> {
+
+        OutputTag<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>>> sideStats;
+
+        public CustomFiltering(
+                OutputTag<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>>> sideStats){
+            this.sideStats = sideStats;
+        }
+
+        @Override
+        public void processElement(Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>> t,
+                                   Context context, Collector<Tuple3<Boolean,
+                Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>>> collector)
+                throws Exception {
+
+            if(t.f0){
+                collector.collect(t);
+            }
+            context.output(sideStats, t);
+        }
+    }
+
+    public static class MeasurePerformance implements MapFunction<Tuple3<Integer, Boolean, Long>, List<Tuple3<String, String, String>>> {
+
+        private HashMap<Integer, HashMap<String, Long>> stats = new HashMap<>();
+
+
+
+        @Override
+        public List<Tuple3<String, String, String>> map(Tuple3<Integer, Boolean, Long> t) throws Exception {
+            if(!stats.containsKey(t.f0)){
+                HashMap<String, Long> temp = new HashMap<>();
+                temp.put("false", 0L);
+                temp.put("true", 0L);
+                stats.put(t.f0, temp);
+            }
+            HashMap<String, Long> upd = stats.get(t.f0);
+            upd.put(t.f1.toString(), t.f2);
+            stats.put(t.f0, upd);
+
+            List<Tuple3<String, String, String>> out = new ArrayList<>();
+            for(int i : stats.keySet()){
+                    out.add(new Tuple3<String, String, String>(
+                            Integer.toString(i),
+                            "false = "+ stats.get(i).get("false").toString(),
+                            "true = "+ stats.get(i).get("true").toString()));
+            }
+            return out;
+        }
+    }
+
+
+    public static class Tuple2KeySelector implements KeySelector<Tuple3<Integer, Boolean, Long>, Tuple2<Integer, Boolean>> {
+
+        @Override
+        public Tuple2<Integer, Boolean> getKey(Tuple3<Integer, Boolean, Long> t) throws Exception {
+            return new Tuple2<Integer, Boolean>(t.f0, t.f1);
+        }
+    }
+
 
     public static void main(String[] args) throws Exception{
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -180,14 +255,28 @@ public class onlinePartitioningForSsj {
         DataStream<Tuple5<Integer,String,Long,Integer,String>> partitionedData = data
                 .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3));
 
-        DataStream<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>,Tuple5<Integer,String,Long,Integer,String>>>
+        final OutputTag<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>>> sideStats =
+                new OutputTag<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>>>("stats"){};
+
+        SingleOutputStreamOperator<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>,Tuple5<Integer,String,Long,Integer,String>>>
                 selfJoinedStream = partitionedData
                 .keyBy(t-> t.f0)
                 .window(GlobalWindows.create())
                 .trigger(new CustomOnElementTrigger())
-                .process(new SimilarityJoin("wiki-news-300d-1K.vec", 0.3));
+                .process(new SimilarityJoin("wiki-news-300d-1K.vec", 0.3))
+                .process(new CustomFiltering(sideStats));
 
         selfJoinedStream.print();
+
+        DataStream<List<Tuple3<String,String,String>>> statistics = selfJoinedStream.getSideOutput(sideStats)
+                .map(t -> new Tuple3<>(t.f1.f0 ,t.f0, 1L))
+                .returns(TypeInformation.of(new TypeHint<Tuple3<Integer ,Boolean, Long>>() {
+                }))
+                .keyBy(new Tuple2KeySelector())
+                .sum(2)
+                .map(new MeasurePerformance());
+
+        statistics.writeAsText(pwd+"/src/main/outputs/stats.txt", FileSystem.WriteMode.OVERWRITE);
 
         LOG.info(env.getExecutionPlan());
 
@@ -195,3 +284,7 @@ public class onlinePartitioningForSsj {
 
     }
 }
+
+// TODO:
+//  - Add more metrics
+//  - Workaround keyBy to control how data are partitioned.
