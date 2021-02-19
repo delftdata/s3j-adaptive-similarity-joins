@@ -53,6 +53,7 @@ public class onlinePartitioningForSsj {
         }
 
         int computePartitionID(int hugeGroup, int groupID, int nextPartIDinGroup){
+            System.out.println(keyRange);
             return hugeGroup*128 + groupID*keyRange + nextPartIDinGroup;
         }
 
@@ -76,6 +77,7 @@ public class onlinePartitioningForSsj {
             else{
                 for(Map.Entry<Integer, Tuple3<Long, String, Double[]>> centroid : partitions.entrySet()){
                     Double dist = SimilarityJoinsUtil.CosineDistance(emb, centroid.getValue().f2);
+//                    System.out.format("centroid: %d, new: %d, dist: %f\n", centroid.getKey(), t.f1,dist);
                     distances.add(new Tuple2<>(centroid.getKey(),dist));
                     if (dist <= 0.5*dist_thresh){
                         collector.collect(new Tuple5<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2));
@@ -93,13 +95,13 @@ public class onlinePartitioningForSsj {
                             int nextPartIDinGroup = 0;
                             int hugeGroup = 0;
                             int partID = computePartitionID(hugeGroup, groupID, nextPartIDinGroup);
+                            System.out.format("%d, %d\n", t.f1 ,partID);
                             partitions.put(partID, new Tuple3<>(t.f0, t.f2, emb));
                             collector.collect(new Tuple5<>(part_num + 1, "inner", t.f0, t.f1, t.f2));
                             partGroups.put(groupID, new Tuple2<>(nextPartIDinGroup,hugeGroup));
                         }
                         else{
                             int groupID = (distances.peek().f0%128)/keyRange;
-                            LOG.info(distances.peek().f0.toString()+","+groupID);
                             int nextPartIDinGroup = 0;
                             if (partGroups.get(groupID).f0<12){
                                 nextPartIDinGroup = partGroups.get(groupID).f0+1;
@@ -110,6 +112,7 @@ public class onlinePartitioningForSsj {
                             }
                             int hugeGroup = partGroups.get(groupID).f1;
                             int partID = computePartitionID(hugeGroup, groupID, nextPartIDinGroup);
+                            System.out.format("%d, %d\n", t.f1 ,partID);
                             partitions.put(partID, new Tuple3<>(t.f0, t.f2, emb));
                             collector.collect(new Tuple5<>(partID, "inner", t.f0, t.f1, t.f2));
                         }
@@ -276,14 +279,17 @@ public class onlinePartitioningForSsj {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         StreamFactory streamFactory = new StreamFactory(env);
-        env.setParallelism(10);
+        env.setMaxParallelism(128);
+        env.setParallelism(1);
 
         LOG.info("Enter main.");
+
+        System.out.println((env.getMaxParallelism()));
 
         DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream();
 
         DataStream<Tuple5<Integer,String,Long,Integer,String>> partitionedData = data
-                .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism())+1)).setParallelism(1);
+                .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism()))).setParallelism(1);
 
 //        partitionedData.keyBy(t -> t.f0).print();
 
