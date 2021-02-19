@@ -40,11 +40,20 @@ public class onlinePartitioningForSsj {
 
         HashMap<String, Double[]> wordEmbeddings;
         Double dist_thresh;
+        int keyRange;
         HashMap<Integer, Tuple3<Long, String, Double[]>> partitions = new HashMap<>();
+        HashMap<Integer, Tuple2<Integer, Integer>> partGroups = new HashMap<>();
+        int nextGroup = 1;
 
-        public AdaptivePartitioner(String file4WE, Double dist_thresh) throws Exception{
+        public AdaptivePartitioner(String file4WE, Double dist_thresh, int keyRange) throws Exception{
             this.wordEmbeddings = SimilarityJoinsUtil.readEmbeddings(file4WE);
             this.dist_thresh = dist_thresh;
+            this.keyRange = keyRange;
+            partGroups.put(0, new Tuple2<>(0, 0));
+        }
+
+        int computePartitionID(int hugeGroup, int groupID, int nextPartIDinGroup){
+            return hugeGroup*128 + groupID*keyRange + nextPartIDinGroup;
         }
 
         @Override
@@ -78,19 +87,42 @@ public class onlinePartitioningForSsj {
                 }
                 try {
                     if (distances.peek().f1 > dist_thresh){
-                        partitions.put(part_num + 1, new Tuple3<>(t.f0, t.f2, emb));
-                        collector.collect(new Tuple5<>(part_num + 1, "inner", t.f0, t.f1, t.f2));
+                        part_num++;
+                        if(distances.peek().f1 > 1.5*dist_thresh) {
+                            int groupID = nextGroup++;
+                            int nextPartIDinGroup = 0;
+                            int hugeGroup = 0;
+                            int partID = computePartitionID(hugeGroup, groupID, nextPartIDinGroup);
+                            partitions.put(partID, new Tuple3<>(t.f0, t.f2, emb));
+                            collector.collect(new Tuple5<>(part_num + 1, "inner", t.f0, t.f1, t.f2));
+                            partGroups.put(groupID, new Tuple2<>(nextPartIDinGroup,hugeGroup));
+                        }
+                        else{
+                            int groupID = (distances.peek().f0%128)/keyRange;
+                            LOG.info(distances.peek().f0.toString()+","+groupID);
+                            int nextPartIDinGroup = 0;
+                            if (partGroups.get(groupID).f0<12){
+                                nextPartIDinGroup = partGroups.get(groupID).f0+1;
+                                partGroups.put(groupID,new Tuple2<>(nextPartIDinGroup, partGroups.get(groupID).f1));
+                            }
+                            else{
+                                partGroups.put(groupID,new Tuple2<>(nextPartIDinGroup, partGroups.get(groupID).f1+1));
+                            }
+                            int hugeGroup = partGroups.get(groupID).f1;
+                            int partID = computePartitionID(hugeGroup, groupID, nextPartIDinGroup);
+                            partitions.put(partID, new Tuple3<>(t.f0, t.f2, emb));
+                            collector.collect(new Tuple5<>(partID, "inner", t.f0, t.f1, t.f2));
+                        }
                     }
                     else {
                         if (distances.peek().f1 > 0.5*dist_thresh) {
-                            partitions.put(part_num + 1, new Tuple3<>(t.f0, t.f2, emb));
                             collector.collect(
                                     new Tuple5<Integer, String, Long, Integer, String>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2));
                         }
                     }
                 }
                 catch (Exception e){
-                    System.out.println(e.getMessage());
+                    System.out.println("oups:" + e.getMessage() +" on "+ (distances.peek().f0%128)/keyRange);
                     throw e;
                 }
             }
@@ -207,8 +239,6 @@ public class onlinePartitioningForSsj {
 
         private HashMap<Integer, HashMap<String, Long>> stats = new HashMap<>();
 
-
-
         @Override
         public List<Tuple3<String, String, String>> map(Tuple3<Integer, Boolean, Long> t) throws Exception {
             if(!stats.containsKey(t.f0)){
@@ -246,14 +276,16 @@ public class onlinePartitioningForSsj {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         StreamFactory streamFactory = new StreamFactory(env);
-        env.setParallelism(1);
+        env.setParallelism(10);
 
         LOG.info("Enter main.");
 
         DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream();
 
         DataStream<Tuple5<Integer,String,Long,Integer,String>> partitionedData = data
-                .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3));
+                .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism())+1)).setParallelism(1);
+
+//        partitionedData.keyBy(t -> t.f0).print();
 
         final OutputTag<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>>> sideStats =
                 new OutputTag<Tuple3<Boolean, Tuple5<Integer,String,Long,Integer,String>, Tuple5<Integer,String,Long,Integer,String>>>("stats"){};
@@ -268,6 +300,7 @@ public class onlinePartitioningForSsj {
 
         selfJoinedStream.print();
 
+        env.setParallelism(1);
         DataStream<List<Tuple3<String,String,String>>> statistics = selfJoinedStream.getSideOutput(sideStats)
                 .map(t -> new Tuple3<>(t.f1.f0 ,t.f0, 1L))
                 .returns(TypeInformation.of(new TypeHint<Tuple3<Integer ,Boolean, Long>>() {
@@ -287,4 +320,4 @@ public class onlinePartitioningForSsj {
 
 // TODO:
 //  - Add more metrics
-//  - Workaround keyBy to control how data are partitioned.
+//  - Workaround keyBy to control how data are partitioned.     In-Progress
