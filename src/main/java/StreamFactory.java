@@ -12,7 +12,7 @@ public class StreamFactory {
     }
 
     public DataStream<Tuple3<Long, Integer, String>> createSimpleWordsStream() {
-        String path = Resource.getPath("dummyStream.txt");
+        String path = Resource.getPath("wordStream.txt");
         DataStream<Tuple3<Long, Integer, String>> simpleWords = env.readTextFile(path,"UTF-8").map(new Parser());
         simpleWords = simpleWords.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Long, Integer, String>>() {
             @Override

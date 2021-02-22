@@ -44,6 +44,7 @@ public class onlinePartitioningForSsj {
         HashMap<Integer, Tuple3<Long, String, Double[]>> partitions = new HashMap<>();
         HashMap<Integer, Tuple2<Integer, Integer>> partGroups = new HashMap<>();
         int nextGroup = 1;
+        ArrayList<Tuple3<Long,Integer,String>> outliers = new ArrayList<>();
 
         public AdaptivePartitioner(String file4WE, Double dist_thresh, int keyRange) throws Exception{
             this.wordEmbeddings = SimilarityJoinsUtil.readEmbeddings(file4WE);
@@ -79,6 +80,7 @@ public class onlinePartitioningForSsj {
                     Double dist = SimilarityJoinsUtil.CosineDistance(emb, centroid.getValue().f2);
 //                    System.out.format("centroid: %d, new: %d, dist: %f\n", centroid.getKey(), t.f1,dist);
                     distances.add(new Tuple2<>(centroid.getKey(),dist));
+
                     if (dist <= 0.5*dist_thresh){
                         collector.collect(new Tuple5<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2));
 
@@ -89,36 +91,18 @@ public class onlinePartitioningForSsj {
                 }
                 try {
                     if (distances.peek().f1 > dist_thresh){
-                        part_num++;
-                        if(distances.peek().f1 > 1.5*dist_thresh) {
-                            int groupID = nextGroup++;
-                            int nextPartIDinGroup = 0;
-                            int hugeGroup = 0;
-                            int partID = computePartitionID(hugeGroup, groupID, nextPartIDinGroup);
-                            System.out.format("%d, %d\n", t.f1 ,partID);
-                            partitions.put(partID, new Tuple3<>(t.f0, t.f2, emb));
-                            collector.collect(new Tuple5<>(part_num + 1, "inner", t.f0, t.f1, t.f2));
-                            partGroups.put(groupID, new Tuple2<>(nextPartIDinGroup,hugeGroup));
-                        }
-                        else{
-                            int groupID = (distances.peek().f0%128)/keyRange;
-                            int nextPartIDinGroup = 0;
-                            if (partGroups.get(groupID).f0<12){
-                                nextPartIDinGroup = partGroups.get(groupID).f0+1;
-                                partGroups.put(groupID,new Tuple2<>(nextPartIDinGroup, partGroups.get(groupID).f1));
-                            }
-                            else{
-                                partGroups.put(groupID,new Tuple2<>(nextPartIDinGroup, partGroups.get(groupID).f1+1));
-                            }
-                            int hugeGroup = partGroups.get(groupID).f1;
-                            int partID = computePartitionID(hugeGroup, groupID, nextPartIDinGroup);
-                            System.out.format("%d, %d\n", t.f1 ,partID);
-                            partitions.put(partID, new Tuple3<>(t.f0, t.f2, emb));
-                            collector.collect(new Tuple5<>(partID, "inner", t.f0, t.f1, t.f2));
-                        }
+                        partitions.put(part_num + 1, new Tuple3<>(t.f0, t.f2, emb));
+                        collector.collect(new Tuple5<>(part_num + 1, "inner", t.f0, t.f1, t.f2));
+//                        for(Tuple3<Long,Integer,String> out : outliers){
+//                            Double[] temp = wordEmbeddings.get(out.f2);
+//                            if(SimilarityJoinsUtil.CosineDistance(emb,temp) < 1.5 * dist_thresh){
+//                                collector.collect(new Tuple5<>(part_num+1, "outer", out.f0, out.f1, out.f2));
+//                            }
+//                        }
                     }
                     else {
                         if (distances.peek().f1 > 0.5*dist_thresh) {
+                            outliers.add(t);
                             collector.collect(
                                     new Tuple5<Integer, String, Long, Integer, String>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2));
                         }
@@ -190,27 +174,51 @@ public class onlinePartitioningForSsj {
                 boolean exp = (
                                 (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
                                 (newTuple.f1.equals("outlier") && t.f1.equals("outlier")) ||
-                                (newTuple.f1.equals("inner") && t.f1.equals("outer"))
+                                (newTuple.f1.equals("inner") && t.f1.equals("outer")) ||
+                                        (newTuple.f1.equals("outlier") && t.f1.equals("outer") && newTuple.f3 < t.f3) ||
+                                        (newTuple.f1.equals("outer") && t.f1.equals("outlier") && newTuple.f3 > t.f3)
                         );
 
                 if (exp){
                     Double[] tEmbed = wordEmbeddings.get(t.f4);
-                    collector.collect(
-                            new Tuple3<>(
-                                    (SimilarityJoinsUtil.CosineDistance(newTupleEmbed, tEmbed) < dist_thresh),
-                                    newTuple,
-                                    t
-                            )
+                    if(newTuple.f3 > t.f3) {
+                        collector.collect(
+                                new Tuple3<>(
+                                        (SimilarityJoinsUtil.CosineDistance(newTupleEmbed, tEmbed) < dist_thresh),
+                                        newTuple,
+                                        t
+                                )
                         );
+                    }
+                    else{
+                        collector.collect(
+                                new Tuple3<>(
+                                        (SimilarityJoinsUtil.CosineDistance(newTupleEmbed, tEmbed) < dist_thresh),
+                                        t,
+                                        newTuple
+                                )
+                        );
+                    }
                 }
                 else if(newTuple.f1.equals("inner") && t.f1.equals("inner")){
-                    collector.collect(
-                            new Tuple3<>(
-                                    true,
-                                    newTuple,
-                                    t
-                            )
-                    );
+                    if(newTuple.f3 > t.f3) {
+                        collector.collect(
+                                new Tuple3<>(
+                                        true,
+                                        newTuple,
+                                        t
+                                )
+                        );
+                    }
+                    else{
+                        collector.collect(
+                                new Tuple3<>(
+                                        true,
+                                        t,
+                                        newTuple
+                                )
+                        );
+                    }
                 }
             }
         }

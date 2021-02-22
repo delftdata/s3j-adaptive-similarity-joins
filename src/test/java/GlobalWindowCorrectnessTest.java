@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GlobalWindowCorrectnessTest {
@@ -58,17 +59,18 @@ public class GlobalWindowCorrectnessTest {
 
         env.execute();
 
-        System.out.println(CollectSink.values.toString());
-        System.out.println(getGroundTruth("dummyStreamGroundTruth.txt"));
-        assertTrue(CollectSink.values.containsAll(getGroundTruth("dummyStreamGroundTruth.txt")));
-
-
-
+//        System.out.println(CollectSink.values.toString());
+//        System.out.println(getGroundTruth("wordStreamGroundTruth.txt"));
+//        for(Tuple2<Integer,Integer> v : CollectSink.values){
+//            System.out.format("(%d,%d): %b\n", v.f0, v.f1, getGroundTruth("wordStreamGroundTruth.txt").contains(v));
+//        }
+        assertTrue(CollectSink.values.containsAll(getGroundTruth("wordStreamGroundTruth.txt")));
+        assertTrue(getGroundTruth("wordStreamGroundTruth.txt").containsAll(CollectSink.values));
 
     }
 
-    private static List<Tuple2<Integer,Integer>> getGroundTruth(String filename) throws Exception{
-        List<Tuple2<Integer,Integer>> groudTruth = new ArrayList<>();
+    private static ArrayList<Tuple2<Integer,Integer>> getGroundTruth(String filename) throws Exception{
+        ArrayList<Tuple2<Integer,Integer>> groudTruth = new ArrayList<>();
 
         try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+ filename), Charset.defaultCharset())) {
             lines.map(l -> l.split(","))

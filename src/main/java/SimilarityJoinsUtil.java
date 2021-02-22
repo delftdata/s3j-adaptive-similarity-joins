@@ -102,19 +102,23 @@ public class SimilarityJoinsUtil {
 
     public static void createGroundTruth(String streamFileName, HashMap<String, Double[]> wordEmbeddings, Double threshold) throws Exception{
         LinkedList<Tuple3<Long,Integer,String>> records = new LinkedList<>();
-        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+streamFileName),Charset.defaultCharset()).skip(1)) {
+        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+streamFileName),Charset.defaultCharset())) {
             lines.map(l -> l.split(", "))
                     .forEach(l -> records.addFirst(new Tuple3<Long,Integer,String>(Long.parseLong(l[0]), Integer.parseInt(l[1]), l[2])));
         }
         try {
-            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/dummyStreamGroundTruth.txt");
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/wordStreamGroundTruth.txt");
             while (!records.isEmpty()) {
                 Tuple3<Long,Integer,String> toCompare = records.poll();
                 Double[] comEmb = wordEmbeddings.get(toCompare.f2);
                 for(Tuple3<Long,Integer,String> r : records){
                     Double[] emb = wordEmbeddings.get(r.f2);
                     Double dist = CosineDistance(comEmb, emb);
+                    if(toCompare.f1 == 615 && r.f1==0){
+                        System.out.println(dist);
+                    }
                     if(dist < threshold){
+                        System.out.format("%d, %d, %f\n", toCompare.f1, r.f1, dist);
                         String toWrite = new Tuple2<Integer, Integer>(toCompare.f1, r.f1).toString().replaceAll("\\(","").replaceAll("\\)","") + "\n";
                         myWriter.write(toWrite);
                     }
@@ -144,7 +148,7 @@ public class SimilarityJoinsUtil {
         HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
         wordEmbeddings = readEmbeddings("wiki-news-300d-1K.vec");
 
-        createGroundTruth("dummyStream.txt", wordEmbeddings, 0.3);
+        createGroundTruth("wordStream.txt", wordEmbeddings, 0.3);
 
     }
 
