@@ -8,9 +8,10 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.experimental.CollectSink;
 import org.apache.flink.util.OutputTag;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import scala.Int;
 
 import java.nio.charset.Charset;
@@ -27,6 +28,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class GlobalWindowCorrectnessTest {
 
+    private static final Logger LOG = LoggerFactory.getLogger(GlobalWindowCorrectnessTest.class);
+
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
     @Test
@@ -35,7 +38,8 @@ public class GlobalWindowCorrectnessTest {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         StreamFactory streamFactory = new StreamFactory(env);
-        env.setParallelism(1);
+        env.setMaxParallelism(128);
+        env.setParallelism(10);
 
         CollectSink.values.clear();
 
@@ -46,7 +50,6 @@ public class GlobalWindowCorrectnessTest {
 
         DataStream<Tuple5<Integer,String,Long,Integer,String>> partitionedData = data
                 .flatMap(new onlinePartitioningForSsj.AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism())+1)).setParallelism(1);
-
 
         partitionedData
                 .keyBy(t-> t.f0)
@@ -61,9 +64,12 @@ public class GlobalWindowCorrectnessTest {
 
 //        System.out.println(CollectSink.values.toString());
 //        System.out.println(getGroundTruth("wordStreamGroundTruth.txt"));
-//        for(Tuple2<Integer,Integer> v : CollectSink.values){
-//            System.out.format("(%d,%d): %b\n", v.f0, v.f1, getGroundTruth("wordStreamGroundTruth.txt").contains(v));
-//        }
+        for(Tuple2<Integer,Integer> v : getGroundTruth("wordStreamGroundTruth.txt")){
+            boolean cont = CollectSink.values.contains(v);
+            if(!cont) {
+                System.out.format("(%d,%d): %b\n", v.f0, v.f1, cont);
+            }
+        }
         assertTrue(CollectSink.values.containsAll(getGroundTruth("wordStreamGroundTruth.txt")));
         assertTrue(getGroundTruth("wordStreamGroundTruth.txt").containsAll(CollectSink.values));
 

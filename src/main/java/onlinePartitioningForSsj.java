@@ -85,20 +85,23 @@ public class onlinePartitioningForSsj {
                         collector.collect(new Tuple5<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2));
 
                     }
-                    else if (dist < 1.5*dist_thresh){
+                    else if (dist <= 1.5*dist_thresh){
                         collector.collect(new Tuple5<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2));
                     }
                 }
+//                if(t.f1 == 308 || t.f1 == 51 || t.f1 == 537 || t.f1==123){
+//                    System.out.println(t.f1.toString()+": "+distances.toString());
+//                }
                 try {
                     if (distances.peek().f1 > dist_thresh){
                         partitions.put(part_num + 1, new Tuple3<>(t.f0, t.f2, emb));
                         collector.collect(new Tuple5<>(part_num + 1, "inner", t.f0, t.f1, t.f2));
-//                        for(Tuple3<Long,Integer,String> out : outliers){
-//                            Double[] temp = wordEmbeddings.get(out.f2);
-//                            if(SimilarityJoinsUtil.CosineDistance(emb,temp) < 1.5 * dist_thresh){
-//                                collector.collect(new Tuple5<>(part_num+1, "outer", out.f0, out.f1, out.f2));
-//                            }
-//                        }
+                        for(Tuple3<Long,Integer,String> out : outliers){
+                            Double[] temp = wordEmbeddings.get(out.f2);
+                            if(SimilarityJoinsUtil.CosineDistance(emb,temp) < 1.5 * dist_thresh){
+                                collector.collect(new Tuple5<>(part_num+1, "outer", out.f0, out.f1, out.f2));
+                            }
+                        }
                     }
                     else {
                         if (distances.peek().f1 > 0.5*dist_thresh) {
@@ -171,12 +174,14 @@ public class onlinePartitioningForSsj {
 
             for (Tuple5<Integer, String, Long, Integer, String> t : tuplesList ) {
 
+                LOG.info(newTuple.toString()+", "+t.toString());
+
                 boolean exp = (
                                 (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
                                 (newTuple.f1.equals("outlier") && t.f1.equals("outlier")) ||
                                 (newTuple.f1.equals("inner") && t.f1.equals("outer")) ||
-                                        (newTuple.f1.equals("outlier") && t.f1.equals("outer") && newTuple.f3 < t.f3) ||
-                                        (newTuple.f1.equals("outer") && t.f1.equals("outlier") && newTuple.f3 > t.f3)
+                                        (newTuple.f1.equals("outlier") && t.f1.equals("outer") && !t.f3.equals(newTuple.f3)) ||
+                                        (newTuple.f1.equals("outer") && t.f1.equals("outlier") && !t.f3.equals(newTuple.f3))
                         );
 
                 if (exp){
@@ -288,7 +293,7 @@ public class onlinePartitioningForSsj {
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         StreamFactory streamFactory = new StreamFactory(env);
         env.setMaxParallelism(128);
-        env.setParallelism(1);
+        env.setParallelism(10);
 
         LOG.info("Enter main.");
 

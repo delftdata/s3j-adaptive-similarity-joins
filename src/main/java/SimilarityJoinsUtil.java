@@ -107,7 +107,7 @@ public class SimilarityJoinsUtil {
                     .forEach(l -> records.addFirst(new Tuple3<Long,Integer,String>(Long.parseLong(l[0]), Integer.parseInt(l[1]), l[2])));
         }
         try {
-            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/wordStreamGroundTruth.txt");
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/dummyStreamGroundTruth.txt");
             while (!records.isEmpty()) {
                 Tuple3<Long,Integer,String> toCompare = records.poll();
                 Double[] comEmb = wordEmbeddings.get(toCompare.f2);
@@ -148,7 +148,7 @@ public class SimilarityJoinsUtil {
         HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
         wordEmbeddings = readEmbeddings("wiki-news-300d-1K.vec");
 
-        createGroundTruth("wordStream.txt", wordEmbeddings, 0.3);
+        createGroundTruth("dummyStream.txt", wordEmbeddings, 0.3);
 
     }
 
