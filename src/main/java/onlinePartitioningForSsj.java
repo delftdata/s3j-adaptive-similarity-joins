@@ -6,6 +6,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.core.fs.FileSystem;
+import org.apache.flink.runtime.metrics.util.SystemResourcesCounter;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -44,7 +45,7 @@ public class onlinePartitioningForSsj {
         HashMap<Integer, Tuple3<Long, String, Double[]>> partitions = new HashMap<>();
         HashMap<Integer, Tuple2<Integer, Integer>> partGroups = new HashMap<>();
         int nextGroup = 1;
-        ArrayList<Tuple3<Long,Integer,String>> outliers = new ArrayList<>();
+        ArrayList<Tuple4<Integer,Long,Integer,String>> outliers = new ArrayList<>();
 
         public AdaptivePartitioner(String file4WE, Double dist_thresh, int keyRange) throws Exception{
             this.wordEmbeddings = SimilarityJoinsUtil.readEmbeddings(file4WE);
@@ -68,7 +69,7 @@ public class onlinePartitioningForSsj {
             PriorityQueue<Tuple2<Integer, Double>> distances =
                     new PriorityQueue<Tuple2<Integer, Double>>(new CustomComparator());
 
-            boolean centroid_flag = false;
+            boolean isOutlier = false;
 
 
             if (part_num == 0){
@@ -76,6 +77,7 @@ public class onlinePartitioningForSsj {
                 collector.collect(new Tuple5<>(1, "inner", t.f0, t.f1, t.f2));
             }
             else{
+                int inner;
                 for(Map.Entry<Integer, Tuple3<Long, String, Double[]>> centroid : partitions.entrySet()){
                     Double dist = SimilarityJoinsUtil.CosineDistance(emb, centroid.getValue().f2);
 //                    System.out.format("centroid: %d, new: %d, dist: %f\n", centroid.getKey(), t.f1,dist);
@@ -83,31 +85,62 @@ public class onlinePartitioningForSsj {
 
                     if (dist <= 0.5*dist_thresh){
                         collector.collect(new Tuple5<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2));
-
+                        inner = centroid.getKey();
                     }
-                    else if (dist <= 1.5*dist_thresh){
-                        collector.collect(new Tuple5<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2));
-                    }
+//                    else if (dist <= 1.5*dist_thresh){
+//                        collector.collect(new Tuple5<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2));
+//                    }
                 }
-//                if(t.f1 == 308 || t.f1 == 51 || t.f1 == 537 || t.f1==123){
+//                if(t.f1 == 69 || t.f1 == 123 || t.f1 == 308 || t.f1 == 659){
 //                    System.out.println(t.f1.toString()+": "+distances.toString());
 //                }
                 try {
                     if (distances.peek().f1 > dist_thresh){
+                        inner = part_num+1;
                         partitions.put(part_num + 1, new Tuple3<>(t.f0, t.f2, emb));
                         collector.collect(new Tuple5<>(part_num + 1, "inner", t.f0, t.f1, t.f2));
-                        for(Tuple3<Long,Integer,String> out : outliers){
-                            Double[] temp = wordEmbeddings.get(out.f2);
+                        for(Tuple4<Integer,Long,Integer,String> out : outliers){
+                            Double[] temp = wordEmbeddings.get(out.f3);
                             if(SimilarityJoinsUtil.CosineDistance(emb,temp) < 1.5 * dist_thresh){
-                                collector.collect(new Tuple5<>(part_num+1, "outer", out.f0, out.f1, out.f2));
+                                if(SimilarityJoinsUtil.CosineDistance(emb, partitions.get(out.f0).f2) > 1.5*dist_thresh) {
+                                    collector.collect(new Tuple5<>(part_num+1, "ind_outer", out.f1, out.f2, out.f3));                                }
                             }
                         }
                     }
                     else {
                         if (distances.peek().f1 > 0.5*dist_thresh) {
-                            outliers.add(t);
+                            inner = distances.peek().f0;
+                            outliers.add(new Tuple4<>(inner, t.f0, t.f1, t.f2));
+                            isOutlier = true;
                             collector.collect(
                                     new Tuple5<Integer, String, Long, Integer, String>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2));
+                        }
+                        else{
+                            inner = distances.peek().f0;
+                        }
+                    }
+
+                    while(!distances.isEmpty()){
+                        Tuple2<Integer, Double> temp = distances.poll();
+                        if(temp.f0 == inner){
+                            continue;
+                        }
+                        else if(temp.f1 > 1.5*dist_thresh){
+                            break;
+                        }
+                        else{
+                            if(inner > temp.f0){
+                                collector.collect(new Tuple5<>(temp.f0, "outer", t.f0, t.f1, t.f2));
+                            }
+                            if(isOutlier && (inner < temp.f0)){
+                                Double[] tempEmb = partitions.get(temp.f0).f2;
+                                Double[] innerEmb = partitions.get(inner).f2;
+
+                                if(SimilarityJoinsUtil.CosineDistance(tempEmb, innerEmb) > 1.5*dist_thresh){
+                                    collector.collect(new Tuple5<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2));
+                                }
+
+                            }
                         }
                     }
                 }
@@ -179,9 +212,13 @@ public class onlinePartitioningForSsj {
                 boolean exp = (
                                 (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
                                 (newTuple.f1.equals("outlier") && t.f1.equals("outlier")) ||
+                                        (newTuple.f1.equals("outlier") && t.f1.equals("inner")) ||
+                                        (newTuple.f1.equals("inner") && t.f1.equals("outlier")) ||
                                 (newTuple.f1.equals("inner") && t.f1.equals("outer")) ||
                                         (newTuple.f1.equals("outlier") && t.f1.equals("outer") && !t.f3.equals(newTuple.f3)) ||
-                                        (newTuple.f1.equals("outer") && t.f1.equals("outlier") && !t.f3.equals(newTuple.f3))
+                                        (newTuple.f1.equals("outer") && t.f1.equals("outlier") && !t.f3.equals(newTuple.f3)) ||
+                                        (newTuple.f1.equals("ind_outer") && t.f1.equals("inner")) ||
+                                        (newTuple.f1.equals("inner") && t.f1.equals("ind_outer"))
                         );
 
                 if (exp){
@@ -299,7 +336,7 @@ public class onlinePartitioningForSsj {
 
         System.out.println((env.getMaxParallelism()));
 
-        DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream();
+        DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream("wordStream.txt");
 
         DataStream<Tuple5<Integer,String,Long,Integer,String>> partitionedData = data
                 .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism()))).setParallelism(1);
@@ -339,4 +376,5 @@ public class onlinePartitioningForSsj {
 
 // TODO:
 //  - Add more metrics
+//  - Create Tests.  In-Progress
 //  - Workaround keyBy to control how data are partitioned.     In-Progress
