@@ -37,7 +37,7 @@ public class GlobalWindowCorrectnessTest {
     public void testJoinResults() throws Exception{
 
         PipelineToTest pipeline = new PipelineToTest();
-        List<Tuple2<Integer,Integer>> results = pipeline.run(20, "wordStream.txt");
+        List<Tuple2<Integer,Integer>> results = pipeline.run(10, "wordStream.txt");
 
 //        System.out.println(CollectSink.values.toString());
 //        System.out.println(getGroundTruth("wordStreamGroundTruth.txt"));

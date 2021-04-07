@@ -16,6 +16,22 @@ public class SimilarityJoinsUtil {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
+    public static HashMap<Integer, Double[]> RandomCentroids(int numCentroids){
+
+        Random rand = new Random(42);
+        HashMap<Integer, Double[]> centroids = new HashMap<Integer, Double[]>();
+
+        for(int i=0; i<numCentroids; i++){
+            Double[] cent = new Double[300];
+            for(int j=0; j<300; j++){
+                cent[j] = rand.nextDouble()*2 - 1;
+            }
+            centroids.put(i, cent);
+        }
+
+        return centroids;
+    }
+
     public static Double CosineSimilarity(Double[] vectorA, Double[] vectorB){
         double dotProduct = 0.0;
         double normA = 0.0;
