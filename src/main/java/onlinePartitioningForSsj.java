@@ -396,7 +396,35 @@ public class onlinePartitioningForSsj {
         }
     }
 
-    public static class MeasurePerformance implements MapFunction<Tuple3<Integer, Boolean, Long>, List<Tuple3<String, String, String>>> {
+    public static class LPMeasurePerformance implements MapFunction<Tuple4<Integer, Integer, Boolean, Long>, List<Tuple4<String, String, String, String>>> {
+
+        private HashMap<Tuple2<Integer, Integer>, HashMap<String, Long>> stats = new HashMap<>();
+
+        @Override
+        public List<Tuple4<String, String, String, String>> map(Tuple4<Integer, Integer, Boolean, Long> t) throws Exception {
+            if(!stats.containsKey(new Tuple2<>(t.f0, t.f1))){
+                HashMap<String, Long> temp = new HashMap<>();
+                temp.put("false", 0L);
+                temp.put("true", 0L);
+                stats.put(new Tuple2<>(t.f0, t.f1), temp);
+            }
+            HashMap<String, Long> upd = stats.get(new Tuple2<>(t.f0, t.f1));
+            upd.put(t.f2.toString(), t.f3);
+            stats.put(new Tuple2<>(t.f0, t.f1), upd);
+
+            List<Tuple4<String, String, String, String>> out = new ArrayList<>();
+            for(Tuple2<Integer,Integer> i : stats.keySet()){
+                    out.add(new Tuple4<String, String, String, String>(
+                            Integer.toString(i.f0),
+                            Integer.toString(i.f1),
+                            "false = "+ stats.get(i).get("false").toString(),
+                            "true = "+ stats.get(i).get("true").toString()));
+            }
+            return out;
+        }
+    }
+
+    public static class PPMeasurePerformance implements MapFunction<Tuple3<Integer, Boolean, Long>, List<Tuple3<String, String, String>>> {
 
         private HashMap<Integer, HashMap<String, Long>> stats = new HashMap<>();
 
@@ -413,18 +441,26 @@ public class onlinePartitioningForSsj {
             stats.put(t.f0, upd);
 
             List<Tuple3<String, String, String>> out = new ArrayList<>();
-            for(int i : stats.keySet()){
-                    out.add(new Tuple3<String, String, String>(
-                            Integer.toString(i),
-                            "false = "+ stats.get(i).get("false").toString(),
-                            "true = "+ stats.get(i).get("true").toString()));
+            for(Integer i : stats.keySet()){
+                out.add(new Tuple3<String, String, String>(
+                        Integer.toString(i),
+                        "false = "+ stats.get(i).get("false").toString(),
+                        "true = "+ stats.get(i).get("true").toString()));
             }
             return out;
         }
     }
 
 
-    public static class Tuple2KeySelector implements KeySelector<Tuple3<Integer, Boolean, Long>, Tuple2<Integer, Boolean>> {
+    public static class StatsKeySelector implements KeySelector<Tuple4<Integer, Integer, Boolean, Long>, Tuple3<Integer, Integer, Boolean>> {
+
+        @Override
+        public Tuple3<Integer, Integer, Boolean> getKey(Tuple4<Integer, Integer, Boolean, Long> t) throws Exception {
+            return new Tuple3<Integer, Integer, Boolean>(t.f0, t.f1, t.f2);
+        }
+    }
+
+    public static class PhyStatsKeySelector implements KeySelector<Tuple3<Integer, Boolean, Long>, Tuple2<Integer, Boolean>> {
 
         @Override
         public Tuple2<Integer, Boolean> getKey(Tuple3<Integer, Boolean, Long> t) throws Exception {
@@ -461,7 +497,7 @@ public class onlinePartitioningForSsj {
                 .keyBy(t -> t.f0)
                 .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism())+1));
 
-        lpData.print();
+        //lpData.print();
 //        partitionedData.keyBy(t -> t.f0).print();
 
         final OutputTag<Tuple3<Boolean, Tuple7<Integer,String,Integer,String,Long,Integer,String>, Tuple7<Integer,String,Integer,String,Long,Integer,String>>> sideStats =
@@ -478,15 +514,23 @@ public class onlinePartitioningForSsj {
         selfJoinedStream.print();
 
         env.setParallelism(1);
-        DataStream<List<Tuple3<String,String,String>>> statistics = selfJoinedStream.getSideOutput(sideStats)
-                .map(t -> new Tuple3<>(t.f1.f0 ,t.f0, 1L))
-                .returns(TypeInformation.of(new TypeHint<Tuple3<Integer ,Boolean, Long>>() {
+        DataStream<List<Tuple4<String,String,String,String>>> logicalStatistics = selfJoinedStream.getSideOutput(sideStats)
+                .map(t -> new Tuple4<>(t.f1.f2, t.f1.f0, t.f0, 1L))
+                .returns(TypeInformation.of(new TypeHint<Tuple4<Integer, Integer, Boolean, Long>>() {
                 }))
-                .keyBy(new Tuple2KeySelector())
-                .sum(2)
-                .map(new MeasurePerformance());
+                .keyBy(new StatsKeySelector())
+                .sum(3)
+                .map(new LPMeasurePerformance());
 
-        statistics.writeAsText(pwd+"/src/main/outputs/stats.txt", FileSystem.WriteMode.OVERWRITE);
+        DataStream<List<Tuple3<String,String,String>>> physicalStatistics = selfJoinedStream.getSideOutput(sideStats)
+                .map(t -> new Tuple3<>(t.f1.f2, t.f0, 1L))
+                .returns(TypeInformation.of(new TypeHint<Tuple3<Integer, Boolean, Long>>() {
+                }))
+                .keyBy(new PhyStatsKeySelector())
+                .sum(2)
+                .map(new PPMeasurePerformance());
+
+        physicalStatistics.writeAsText(pwd+"/src/main/outputs/stats.txt", FileSystem.WriteMode.OVERWRITE);
 
         LOG.info(env.getExecutionPlan());
 
@@ -498,5 +542,5 @@ public class onlinePartitioningForSsj {
 // TODO:
 //  - Use embeddings from end-to-end.
 //  - Add more metrics
-//  - Create Tests.  In-Progress
-//  - Workaround keyBy to control how data are partitioned.     In-Progress
+//  - Create Tests.  DONE
+//  - Workaround keyBy to control how data are partitioned.     DONE
