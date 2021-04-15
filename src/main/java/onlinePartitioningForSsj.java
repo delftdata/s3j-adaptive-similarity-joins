@@ -1,9 +1,8 @@
-import org.apache.flink.api.common.functions.FlatMapFunction;
-import org.apache.flink.api.common.functions.JoinFunction;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -17,11 +16,14 @@ import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.RichWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -77,27 +79,14 @@ public class onlinePartitioningForSsj {
             }
             collector.collect(new Tuple5<Integer,String,Long,Integer,String>(computePartitionID(min_idx), "pInner", t.f0, t.f1, t.f2));
 
-            for(int i=0; i<distances.length ; i++){
-                if(i == min_idx) continue;
-                else if((distances[i] < min_dist + 2*dist_thresh) && ((min_idx < i) ^ (min_idx + i)%2 == 1)){
-                    collector.collect(new Tuple5<Integer,String,Long,Integer,String>(
+            for(int i=0; i<distances.length ; i++) {
+                if (i == min_idx) continue;
+                else if ((distances[i] < min_dist + 2 * dist_thresh) && ((min_idx < i) ^ (min_idx + i) % 2 == 1)) {
+                    collector.collect(new Tuple5<Integer, String, Long, Integer, String>(
                             computePartitionID(i), "pOuter", t.f0, t.f1, t.f2
                     ));
                 }
-//                if(t.f1.equals(785) || t.f1.equals(4)){
-//                    System.out.println(t.f1.toString());
-//                    System.out.println((distances[i] < min_dist + 2*dist_thresh) && ((min_idx < i) ^ (min_idx + i)%2 == 1));
-//                }
             }
-//            if(t.f1.equals(785) || t.f1.equals(4)){
-//                String temp = "";
-//                for (Double d : distances){
-//                    temp = temp + d.toString() + ",";
-//                }
-//                System.out.println(t.f1.toString());
-//                System.out.println(temp);
-//            }
-
         }
 
         int computePartitionID(int groupID){
@@ -452,6 +441,78 @@ public class onlinePartitioningForSsj {
     }
 
 
+    public static class PPRecTypeList implements MapFunction<Tuple3<Integer, String, Long>, List<Tuple3<String, String, String>>> {
+
+        private HashMap<Integer, HashMap<String, Long>> stats = new HashMap<>();
+
+        @Override
+        public List<Tuple3<String, String, String>> map(Tuple3<Integer, String, Long> t) throws Exception {
+            if(!stats.containsKey(t.f0)){
+                HashMap<String, Long> temp = new HashMap<>();
+                temp.put("pInner", 0L);
+                temp.put("pOuter", 0L);
+                stats.put(t.f0, temp);
+            }
+            HashMap<String, Long> upd = stats.get(t.f0);
+            upd.put(t.f1, t.f2);
+            stats.put(t.f0, upd);
+
+            List<Tuple3<String, String, String>> out = new ArrayList<>();
+            for(Integer i : stats.keySet()){
+                out.add(new Tuple3<String, String, String>(
+                        Integer.toString(i),
+                        "pInner = "+ stats.get(i).get("pInner").toString(),
+                        "pOuter = "+ stats.get(i).get("pOuter").toString()));
+            }
+            return out;
+        }
+    }
+
+    public static class OverallPartitionSizeList implements MapFunction<Tuple2<Integer, Long>, List<Tuple2<String,String>>>{
+
+        private HashMap<Integer, Long> stats = new HashMap<>();
+
+        @Override
+        public List<Tuple2<String, String>> map(Tuple2<Integer, Long> t) throws Exception {
+
+            stats.put(t.f0,t.f1);
+
+            List<Tuple2<String, String>> out = new ArrayList<>();
+            for(Integer i : stats.keySet()){
+                out.add(new Tuple2<String, String>(
+                        Integer.toString(i),
+                        stats.get(i).toString()));
+            }
+            return out;
+        }
+
+    }
+
+
+    public static class WindowedOverallPartitionSizeList implements MapFunction<Tuple3<Long, Integer, Long>, List<Tuple3<String,String,String>>>{
+
+        private HashMap<Integer, Tuple2<Long,Long>> stats = new HashMap<>();
+
+        @Override
+        public List<Tuple3<String, String, String>> map(Tuple3<Long, Integer, Long> t) throws Exception {
+
+            stats.put(t.f1, new Tuple2<Long,Long>(t.f0,t.f2));
+
+            List<Tuple3<String,String, String>> out = new ArrayList<>();
+            for(Integer i : stats.keySet()){
+                out.add(new Tuple3<String, String, String>(
+                        Integer.toString(i),
+                        stats.get(i).f0.toString(),
+                        stats.get(i).f1.toString()));
+            }
+            return out;
+        }
+
+    }
+
+
+
+
     public static class StatsKeySelector implements KeySelector<Tuple4<Integer, Integer, Boolean, Long>, Tuple3<Integer, Integer, Boolean>> {
 
         @Override
@@ -465,6 +526,14 @@ public class onlinePartitioningForSsj {
         @Override
         public Tuple2<Integer, Boolean> getKey(Tuple3<Integer, Boolean, Long> t) throws Exception {
             return new Tuple2<Integer, Boolean>(t.f0, t.f1);
+        }
+    }
+
+    public static class PhyStatsRtypeKeySelector implements KeySelector<Tuple3<Integer, String, Long>, Tuple2<Integer, String>>{
+
+        @Override
+        public Tuple2<Integer, String> getKey(Tuple3<Integer, String, Long> t) throws Exception {
+            return new Tuple2<>(t.f0,t.f1);
         }
     }
 
@@ -491,14 +560,12 @@ public class onlinePartitioningForSsj {
         DataStream<Tuple5<Integer,String,Long,Integer,String>> ppData = data.
                 flatMap(new PhysicalPartitioner("wiki-news-300d-1K.vec", 0.3, SimilarityJoinsUtil.RandomCentroids(10), (env.getMaxParallelism()/env.getParallelism())+1));
 
-//        ppData.print();
 
         DataStream<Tuple7<Integer,String,Integer,String,Long,Integer,String>> lpData = ppData
                 .keyBy(t -> t.f0)
                 .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism())+1));
 
-        //lpData.print();
-//        partitionedData.keyBy(t -> t.f0).print();
+
 
         final OutputTag<Tuple3<Boolean, Tuple7<Integer,String,Integer,String,Long,Integer,String>, Tuple7<Integer,String,Integer,String,Long,Integer,String>>> sideStats =
                 new OutputTag<Tuple3<Boolean, Tuple7<Integer,String,Integer,String,Long,Integer,String>, Tuple7<Integer,String,Integer,String,Long,Integer,String>>>("stats"){};
@@ -511,9 +578,52 @@ public class onlinePartitioningForSsj {
                 .process(new SimilarityJoin("wiki-news-300d-1K.vec", 0.3))
                 .process(new CustomFiltering(sideStats));
 
-        selfJoinedStream.print();
+//        selfJoinedStream.print();
+
+
+//*********************************************      STATISTICS SECTION      *******************************************
 
         env.setParallelism(1);
+
+
+        //<-------  Capture the size of physical partitions --------->
+        ppData
+                .map(t -> new Tuple2<>(t.f0, 1L))
+                .returns(TypeInformation.of((new TypeHint<Tuple2<Integer, Long>>() {
+                })))
+                .keyBy(t -> t.f0)
+                .sum(1)
+                .map(new OverallPartitionSizeList())
+                .writeAsText(pwd + "/src/main/outputs/physicalPartitionSizes.txt", FileSystem.WriteMode.OVERWRITE);
+
+
+
+        //<-------  Capture the size of physical partitions per window --------->
+        ppData
+                .map(t -> new Tuple3<>(t.f2, t.f0, 1L))
+                .returns(TypeInformation.of((new TypeHint<Tuple3<Long, Integer, Long>>() {
+                })))
+                .keyBy(t -> t.f1)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+                .sum(2)
+                .map(new WindowedOverallPartitionSizeList())
+                .writeAsText(pwd + "/src/main/outputs/windowedPhysicalPartitionSizes.txt", FileSystem.WriteMode.OVERWRITE);
+
+
+
+        //<-------  Capture the number of inner and outer records in each partition --------->
+        ppData
+                .map(t -> new Tuple3<>(t.f0, t.f1, 1L))
+                .returns(TypeInformation.of(new TypeHint<Tuple3<Integer, String, Long>>() {
+                }))
+                .keyBy(new PhyStatsRtypeKeySelector())
+                .sum(2)
+                .map(new PPRecTypeList())
+                .writeAsText(pwd + "/src/main/outputs/ppRecordTypes.txt", FileSystem.WriteMode.OVERWRITE);
+
+
+
+        //<-------  Capture the number of true and false comparisons in each logical partition --------->
         DataStream<List<Tuple4<String,String,String,String>>> logicalStatistics = selfJoinedStream.getSideOutput(sideStats)
                 .map(t -> new Tuple4<>(t.f1.f2, t.f1.f0, t.f0, 1L))
                 .returns(TypeInformation.of(new TypeHint<Tuple4<Integer, Integer, Boolean, Long>>() {
@@ -522,6 +632,11 @@ public class onlinePartitioningForSsj {
                 .sum(3)
                 .map(new LPMeasurePerformance());
 
+        logicalStatistics.writeAsText(pwd+"/src/main/outputs/comparisonsByLogicalPart.txt", FileSystem.WriteMode.OVERWRITE);
+
+
+
+        //<-------  Capture the number of true and false comparisons in each physical partition --------->
         DataStream<List<Tuple3<String,String,String>>> physicalStatistics = selfJoinedStream.getSideOutput(sideStats)
                 .map(t -> new Tuple3<>(t.f1.f2, t.f0, 1L))
                 .returns(TypeInformation.of(new TypeHint<Tuple3<Integer, Boolean, Long>>() {
@@ -530,7 +645,7 @@ public class onlinePartitioningForSsj {
                 .sum(2)
                 .map(new PPMeasurePerformance());
 
-        physicalStatistics.writeAsText(pwd+"/src/main/outputs/stats.txt", FileSystem.WriteMode.OVERWRITE);
+        physicalStatistics.writeAsText(pwd+"/src/main/outputs/comparisonsByPhysicalPart.txt", FileSystem.WriteMode.OVERWRITE);
 
         LOG.info(env.getExecutionPlan());
 
