@@ -23,6 +23,7 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Int;
 
 import java.nio.file.Paths;
 import java.util.*;
@@ -86,7 +87,7 @@ public class onlinePartitioningForSsj {
     }
 
     public static class AdaptivePartitioner extends
-            RichFlatMapFunction<Tuple6<Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>> {
+            RichFlatMapFunction<Tuple6<Integer,String,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>> {
 
         HashMap<String, Double[]> wordEmbeddings;
         Double dist_thresh;
@@ -120,7 +121,7 @@ public class onlinePartitioningForSsj {
 
 
         @Override
-        public void flatMap(Tuple6<Integer, String, Integer, Long, Integer, String> t, Collector<Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>> collector)
+        public void flatMap(Tuple6<Integer, String, Integer, Long, Integer, String> t, Collector<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>> collector)
                 throws Exception {
 
             Double[] emb = wordEmbeddings.get(t.f5);
@@ -137,8 +138,8 @@ public class onlinePartitioningForSsj {
                     distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                     if (dist <= 2 * dist_thresh) {
-                        collector.collect(new Tuple8<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
-                        LOG.info(new Tuple8<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5).toString());
+                        collector.collect(new Tuple9<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2, -1, t.f3, t.f4, t.f5));
+                        LOG.info(new Tuple9<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2, -1, t.f3, t.f4, t.f5).toString());
                     }
                 }
                 phyOuters.add(t);
@@ -146,13 +147,13 @@ public class onlinePartitioningForSsj {
             else if (t.f1.equals("pInner")) {
                 if (part_num == 0) {
                     partitions.put(1, new Tuple3<Long, String, Double[]>(t.f3, t.f5, emb));
-                    collector.collect(new Tuple8<>(1, "inner", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
-                    LOG.info(new Tuple7<>(1, "inner", t.f0, t.f1, t.f2, t.f3, t.f4).toString());
+                    collector.collect(new Tuple9<>(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5));
+                    LOG.info(new Tuple9<>(1, "inner", t.f0, t.f1, t.f2, 1,t.f3, t.f4, t.f5).toString());
                     for(Tuple6<Integer,String,Integer,Long,Integer,String> po : phyOuters.get()){
                         Double[] temp = wordEmbeddings.get(po.f5);
                         if(SimilarityJoinsUtil.CosineDistance(emb, temp) <= 2 * dist_thresh){
-                            collector.collect(new Tuple8<>(1, "outer", po.f0, po.f1, po.f2, po.f3, po.f4, po.f5));
-                            LOG.info(new Tuple8<>(1, "outer", po.f0, po.f1, po.f2, po.f3, po.f4, po.f5).toString());
+                            collector.collect(new Tuple9<>(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5));
+                            LOG.info(new Tuple9<>(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
                         }
                     }
                 } else {
@@ -162,8 +163,8 @@ public class onlinePartitioningForSsj {
                         distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                         if (dist <= 0.5 * dist_thresh) {
-                            collector.collect(new Tuple8<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
-                            LOG.info(new Tuple8<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5).toString());
+                            collector.collect(new Tuple9<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2, centroid.getKey(), t.f3, t.f4, t.f5));
+                            LOG.info(new Tuple9<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2, centroid.getKey(), t.f3, t.f4, t.f5).toString());
                             inner = centroid.getKey();
                         }
                     }
@@ -174,21 +175,21 @@ public class onlinePartitioningForSsj {
                         if (distances.peek().f1 > dist_thresh) {
                             inner = part_num + 1;
                             partitions.put(part_num + 1, new Tuple3<>(t.f3, t.f5, emb));
-                            collector.collect(new Tuple8<>(part_num + 1, "inner", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
-                            LOG.info(new Tuple8<>(part_num + 1, "inner", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5).toString());
+                            collector.collect(new Tuple9<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5));
+                            LOG.info(new Tuple9<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5).toString());
                             for(Tuple6<Integer,String,Integer,Long,Integer,String> po : phyOuters.get()){
                                 Double[] temp = wordEmbeddings.get(po.f5);
                                 if(SimilarityJoinsUtil.CosineDistance(emb, temp) <= 2 * dist_thresh){
-                                    collector.collect(new Tuple8<>(part_num + 1, "outer", po.f0, po.f1, po.f2, po.f3, po.f4, po.f5));
-                                    LOG.info(new Tuple8<>(part_num + 1, "outer", po.f0, po.f1, po.f2, po.f3, po.f4, po.f5).toString());
+                                    collector.collect(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5));
+                                    LOG.info(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
                                 }
                             }
                             for (Tuple7<Integer, Integer, String, Integer, Long, Integer, String> out : outliers.get()) {
                                 Double[] temp = wordEmbeddings.get(out.f6);
                                 if (SimilarityJoinsUtil.CosineDistance(emb, temp) < 1.5 * dist_thresh) {
                                     if (SimilarityJoinsUtil.CosineDistance(emb, partitions.get(out.f0).f2) > 1.5 * dist_thresh) {
-                                        collector.collect(new Tuple8<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f4, out.f5, out.f6));
-                                        LOG.info(new Tuple8<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f4, out.f5, out.f6).toString());
+                                        collector.collect(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6));
+                                        LOG.info(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6).toString());
                                     }
                                 }
                             }
@@ -198,8 +199,8 @@ public class onlinePartitioningForSsj {
                                 outliers.add(new Tuple7<>(inner,t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
                                 isOutlier = true;
                                 collector.collect(
-                                        new Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
-                                LOG.info(new Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5).toString());
+                                        new Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2, distances.peek().f0, t.f3, t.f4, t.f5));
+                                LOG.info(new Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2, distances.peek().f0, t.f3, t.f4, t.f5).toString());
                             } else {
                                 inner = distances.peek().f0;
                             }
@@ -213,16 +214,16 @@ public class onlinePartitioningForSsj {
                                 break;
                             } else {
                                 if (inner > temp.f0) {
-                                    collector.collect(new Tuple8<>(temp.f0, "outer", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
-                                    LOG.info(new Tuple8<>(temp.f0, "outer", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5).toString());
+                                    collector.collect(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
+                                    LOG.info(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
                                 }
                                 if (isOutlier && (inner < temp.f0)) {
                                     Double[] tempEmb = partitions.get(temp.f0).f2;
                                     Double[] innerEmb = partitions.get(inner).f2;
 
                                     if (SimilarityJoinsUtil.CosineDistance(tempEmb, innerEmb) > 1.5 * dist_thresh) {
-                                        collector.collect(new Tuple8<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
-                                        LOG.info(new Tuple8<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, t.f3, t.f4, t.f5).toString());
+                                        collector.collect(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
+                                        LOG.info(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
                                     }
 
                                 }
@@ -237,10 +238,10 @@ public class onlinePartitioningForSsj {
         }
     }
 
-    public static class CustomOnElementTrigger extends Trigger<Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, GlobalWindow>{
+    public static class CustomOnElementTrigger extends Trigger<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, GlobalWindow>{
 
         @Override
-        public TriggerResult onElement(Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String> t, long l, GlobalWindow window, TriggerContext triggerContext) throws Exception {
+        public TriggerResult onElement(Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String> t, long l, GlobalWindow window, TriggerContext triggerContext) throws Exception {
             return TriggerResult.FIRE;
         }
 
@@ -260,8 +261,8 @@ public class onlinePartitioningForSsj {
         }
     }
 
-    public static class SimilarityJoin extends ProcessWindowFunction<Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>,
-                    Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>,Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>,
+    public static class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>,
+                    Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>,
                     Tuple2<Integer,Integer>,
                     GlobalWindow> {
 
@@ -277,20 +278,20 @@ public class onlinePartitioningForSsj {
         @Override
         public void process(Tuple2<Integer,Integer> key,
                           Context ctx,
-                          Iterable<Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>> tuples,
+                          Iterable<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>> tuples,
                           Collector<Tuple3<Boolean,
-                                  Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>,
-                                  Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>>> collector)
+                                  Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>,
+                                  Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>>> collector)
                 throws Exception {
 
-            Iterator<Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>> tuplesIterator = tuples.iterator();
-            LinkedList<Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>> tuplesList = new LinkedList<>();
+            Iterator<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>> tuplesIterator = tuples.iterator();
+            LinkedList<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>> tuplesList = new LinkedList<>();
             tuplesIterator.forEachRemaining(tuplesList::addFirst);
 
-            Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String> newTuple = tuplesList.pollFirst();
-            Double[] newTupleEmbed = wordEmbeddings.get(newTuple.f7);
+            Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String> newTuple = tuplesList.pollFirst();
+            Double[] newTupleEmbed = wordEmbeddings.get(newTuple.f8);
 
-            for (Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String> t : tuplesList ) {
+            for (Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String> t : tuplesList ) {
 
 //                LOG.info(newTuple.toString()+", "+t.toString());
 
@@ -300,15 +301,15 @@ public class onlinePartitioningForSsj {
                                         (newTuple.f1.equals("outlier") && t.f1.equals("inner")) ||
                                         (newTuple.f1.equals("inner") && t.f1.equals("outlier")) ||
                                 (newTuple.f1.equals("inner") && t.f1.equals("outer")) ||
-                                        (newTuple.f1.equals("outlier") && t.f1.equals("outer") && !t.f6.equals(newTuple.f6)) ||
-                                        (newTuple.f1.equals("outer") && t.f1.equals("outlier") && !t.f6.equals(newTuple.f6)) ||
+                                        (newTuple.f1.equals("outlier") && t.f1.equals("outer") && !t.f7.equals(newTuple.f7)) ||
+                                        (newTuple.f1.equals("outer") && t.f1.equals("outlier") && !t.f7.equals(newTuple.f7)) ||
                                         (newTuple.f1.equals("ind_outer") && t.f1.equals("inner")) ||
                                         (newTuple.f1.equals("inner") && t.f1.equals("ind_outer"))
                         );
 
                 if (exp){
-                    Double[] tEmbed = wordEmbeddings.get(t.f7);
-                    if(newTuple.f6 > t.f6) {
+                    Double[] tEmbed = wordEmbeddings.get(t.f8);
+                    if(newTuple.f7 > t.f7) {
                         collector.collect(
                                 new Tuple3<>(
                                         (SimilarityJoinsUtil.CosineDistance(newTupleEmbed, tEmbed) < dist_thresh),
@@ -328,7 +329,7 @@ public class onlinePartitioningForSsj {
                     }
                 }
                 else if(newTuple.f1.equals("inner") && t.f1.equals("inner")){
-                    if(newTuple.f6 > t.f6) {
+                    if(newTuple.f7 > t.f7) {
                         collector.collect(
                                 new Tuple3<>(
                                         true,
@@ -351,19 +352,19 @@ public class onlinePartitioningForSsj {
         }
     }
 
-    static public class CustomFiltering extends ProcessFunction<Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>,Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>> {
+    static public class CustomFiltering extends ProcessFunction<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>,Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>> {
 
-        OutputTag<Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>> sideStats;
+        OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>> sideStats;
 
         public CustomFiltering(
-                OutputTag<Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>> sideStats){
+                OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>> sideStats){
             this.sideStats = sideStats;
         }
 
         @Override
-        public void processElement(Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>> t,
+        public void processElement(Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>> t,
                                    Context context, Collector<Tuple3<Boolean,
-                Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>> collector)
+                Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>> collector)
                 throws Exception {
 
             if(t.f0){
@@ -402,10 +403,10 @@ public class onlinePartitioningForSsj {
         }
     }
 
-    public static class LogicalKeySelector implements KeySelector<Tuple8<Integer,String,Integer, String, Integer, Long, Integer, String>, Tuple2<Integer, Integer>>{
+    public static class LogicalKeySelector implements KeySelector<Tuple9<Integer,String,Integer, String, Integer, Integer, Long, Integer, String>, Tuple2<Integer, Integer>>{
 
         @Override
-        public Tuple2<Integer, Integer> getKey(Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String> t) throws Exception {
+        public Tuple2<Integer, Integer> getKey(Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String> t) throws Exception {
             return new Tuple2<Integer, Integer>(t.f0,t.f2);
         }
     }
@@ -420,7 +421,15 @@ public class onlinePartitioningForSsj {
         }
     }
 
+    public static class BetweenLogicalPartKeySelector implements KeySelector<Tuple5<Integer,Integer,Integer,Boolean,Long>,
+            Tuple4<Integer, Integer, Integer, Boolean>>{
 
+
+        @Override
+        public Tuple4<Integer, Integer, Integer, Boolean> getKey(Tuple5<Integer, Integer, Integer, Boolean, Long> t) throws Exception {
+            return new Tuple4<>(t.f0, t.f1, t.f2, t.f3);
+        }
+    }
 
 
     // *****************************************************************************************************************
@@ -559,15 +568,15 @@ public class onlinePartitioningForSsj {
 
 
     public  static class BetweenPhyPartMapper implements FlatMapFunction
-            <Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>,
+            <Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>,
                     Tuple4<Integer, Integer, Boolean, Long>>{
 
 
         @Override
         public void flatMap(Tuple3<
                 Boolean,
-                Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>,
-                Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>> t,
+                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>,
+                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>> t,
                             Collector<Tuple4<Integer, Integer, Boolean, Long>> collector) throws Exception {
 
 
@@ -640,6 +649,143 @@ public class onlinePartitioningForSsj {
     }
 
 
+    public static class BetweenLogicalMapper implements FlatMapFunction
+            <Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>,
+            Tuple5<Integer, Integer, Integer, Boolean, Long>>{
+
+        @Override
+        public void flatMap(Tuple3<
+                Boolean,
+                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>,
+                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>> t,
+                            Collector<Tuple5<Integer, Integer, Integer, Boolean, Long>> collector) throws Exception {
+
+            Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String> t1 = t.f1;
+            Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String> t2 = t.f2;
+
+
+            if(t1.f3.equals("pInner") && t2.f3.equals("pInner")){
+                if (t1.f1.equals("inner") && t2.f1.equals("outer")){
+                    collector.collect(new Tuple5<Integer, Integer,Integer,Boolean,Long>(t1.f4, t1.f0, t2.f5, t.f0, 1L));
+                }
+                else if (t1.f1.equals("outer") && t2.f1.equals("inner")){
+                    collector.collect(new Tuple5<Integer, Integer,Integer,Boolean,Long>(t2.f4, t2.f0, t1.f5, t.f0, 1L));
+                }
+            }
+
+
+
+        }
+    }
+
+    public static class BetweenLogicalPartMatchesList implements MapFunction<
+            Tuple5<Integer, Integer, Integer, Boolean, Long>,
+            List<Tuple5<String, String, String, String, String>>> {
+
+        private HashMap<Integer, HashMap<Integer, HashMap<Integer, HashMap<Boolean, Long>>>> stats = new HashMap<>();
+
+        @Override
+        public List<Tuple5<String, String, String, String, String>> map(Tuple5<Integer, Integer, Integer, Boolean, Long> t) throws Exception {
+
+            HashMap<Boolean, Long> boolUpd;
+            HashMap<Integer, HashMap<Boolean, Long>> intUpd;
+            HashMap<Integer, HashMap<Integer, HashMap<Boolean, Long>>> physical;
+
+            if(!stats.containsKey(t.f0)){
+                HashMap<Integer, HashMap<Integer, HashMap<Boolean, Long>>> phyTemp = new HashMap<>();
+                HashMap<Integer, HashMap<Boolean,Long>> temp = new HashMap<>();
+                HashMap<Boolean, Long> boolTemp = new HashMap<>();
+                boolTemp.put(true, 0L);
+                boolTemp.put(false, 0L);
+                temp.put(t.f2, boolTemp);
+                phyTemp.put(t.f1, temp);
+                stats.put(t.f0, phyTemp);
+            }
+            else{
+                if(!stats.get(t.f0).containsKey(t.f1)){
+                    HashMap<Integer, HashMap<Integer, HashMap<Boolean, Long>>> phyTemp = stats.get(t.f0);
+                    HashMap<Integer, HashMap<Boolean,Long>> temp = new HashMap<>();
+                    HashMap<Boolean, Long> boolTemp = new HashMap<>();
+                    boolTemp.put(true, 0L);
+                    boolTemp.put(false, 0L);
+                    temp.put(t.f2, boolTemp);
+                    phyTemp.put(t.f1, temp);
+                    stats.put(t.f0, phyTemp);
+                }
+                else{
+                    if(!stats.get(t.f0).get(t.f1).containsKey(t.f2)){
+                        HashMap<Integer, HashMap<Integer, HashMap<Boolean, Long>>> phyTemp = stats.get(t.f0);
+                        HashMap<Integer, HashMap<Boolean,Long>> temp = phyTemp.get(t.f1);
+                        HashMap<Boolean, Long> boolTemp = new HashMap<>();
+                        boolTemp.put(true, 0L);
+                        boolTemp.put(false, 0L);
+                        temp.put(t.f2, boolTemp);
+                        phyTemp.put(t.f1, temp);
+                        stats.put(t.f0, phyTemp);
+                    }
+                }
+            }
+
+            boolUpd = stats.get(t.f0).get(t.f1).get(t.f2);
+            boolUpd.put(t.f3, t.f4);
+            intUpd = stats.get(t.f0).get(t.f1);
+            intUpd.put(t.f2, boolUpd);
+            physical = stats.get(t.f0);
+            physical.put(t.f1, intUpd);
+            stats.put(t.f0, physical);
+
+
+            List<Tuple5<String, String, String, String, String>> out = new ArrayList<>();
+            try {
+                for (Integer i : stats.keySet()) {
+                    for (Integer j : stats.get(i).keySet()) {
+                        for (Integer k: stats.get(i).get(j).keySet()) {
+                            out.add(new Tuple5<String, String, String, String, String>(
+                                    Integer.toString(i),
+                                    Integer.toString(j),
+                                    Integer.toString(k),
+                                    "True = " + stats.get(i).get(j).get(k).get(true).toString(),
+                                    "False = " + stats.get(i).get(j).get(k).get(false).toString()));
+                        }
+                    }
+                }
+            }
+            catch (Exception e){
+                System.out.println(e.getMessage());
+                System.out.println(stats.toString());
+                throw e;
+            }
+            return out;
+        }
+    }
+
+
+    public static class NumOfLogicalPartMapper implements MapFunction<Tuple2<Integer,Integer>, List<Tuple2<Integer,Integer>>>{
+
+        private HashMap<Integer, Integer> stats = new HashMap<>();
+
+        @Override
+        public List<Tuple2<Integer,Integer>> map(Tuple2<Integer, Integer> t) throws Exception {
+            if(!stats.containsKey(t.f0)){
+                stats.put(t.f0, 0);
+            }
+
+            int sizePP = stats.get(t.f0);
+            if(sizePP < t.f1){
+                stats.put(t.f0, t.f1);
+            }
+
+            List<Tuple2<Integer, Integer>> out = new ArrayList<>();
+            for(Integer i : stats.keySet()){
+                out.add(new Tuple2<Integer, Integer>(
+                        i,
+                        stats.get(i)
+                ));
+            }
+            return out;
+        }
+    }
+
 
 
 
@@ -658,16 +804,16 @@ public class onlinePartitioningForSsj {
                 flatMap(new PhysicalPartitioner("wiki-news-300d-1K.vec", 0.3, SimilarityJoinsUtil.RandomCentroids(10), (env.getMaxParallelism()/env.getParallelism())+1));
 
 
-        DataStream<Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>> lpData = ppData
+        DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>> lpData = ppData
                 .keyBy(t -> t.f0)
                 .flatMap(new AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism())+1));
 
 
 
-        final OutputTag<Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>> sideStats =
-                new OutputTag<Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>>("stats"){};
+        final OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>> sideStats =
+                new OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>>("stats"){};
 
-        SingleOutputStreamOperator<Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>,Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>>
+        SingleOutputStreamOperator<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>>
                 selfJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
                 .window(GlobalWindows.create())
@@ -746,13 +892,30 @@ public class onlinePartitioningForSsj {
 
 
 
-        //<-------  Capture the number of true and false comparisons in between physical partitions --------->
+        //<-------  Capture the number of true and false comparisons between physical partitions --------->
         selfJoinedStream.getSideOutput(sideStats)
                 .flatMap(new BetweenPhyPartMapper())
                 .keyBy(new BetweenPhyPartKeySelector())
                 .sum(3)
                 .map(new BetweenPhyPartMatchesList())
                 .writeAsText(pwd+"/src/main/outputs/matchesBetweenPhysicalPart.txt", FileSystem.WriteMode.OVERWRITE);
+
+
+        //<------- Capture the number of true and false comparisons between logical partitions --------->
+        selfJoinedStream.getSideOutput(sideStats)
+                .flatMap(new BetweenLogicalMapper())
+                .keyBy(new BetweenLogicalPartKeySelector())
+                .sum(4)
+                .map(new BetweenLogicalPartMatchesList())
+                .writeAsText(pwd+"/src/main/outputs/matchesBetweenLogicalPart.txt", FileSystem.WriteMode.OVERWRITE);
+
+
+        //<-------- Number of logical partitions within each physical ---------->
+        lpData
+                .map(t -> new Tuple2<Integer,Integer>(t.f2, t.f0))
+                .returns(TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {}))
+                .map(new NumOfLogicalPartMapper())
+                .writeAsText(pwd+"/src/main/outputs/NumOfLogicalPartPerPhysical.txt", FileSystem.WriteMode.OVERWRITE);
 
 
         LOG.info(env.getExecutionPlan());

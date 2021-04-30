@@ -72,36 +72,25 @@ public class SimilarityJoinsUtil {
     }
 
     public static void createStreamFile(HashMap<String, Double[]> embeddings, int N) throws Exception{
-        try {
-            File myFile = new File(pwd + "/src/main/resources/wordStream.txt");
-            if (myFile.createNewFile()) {
-                System.out.println("File created: " + myFile.getName());
-            } else {
-                System.out.println("File already exists.");
-            }
-        }
-        catch (Exception e){
-            System.out.println(e.getMessage());
-            throw e;
-        }
 
         Set<String> setKeys = embeddings.keySet();
         int arrSize = setKeys.size();
         String[] keys = setKeys.toArray(new String[arrSize]);
 
         try {
-            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/wordStream.txt");
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/10KwordStream.txt");
             Random rand = new Random(1000);
             int timestamp = 0;
             int id = 0;
-            int itemPerStamp = 10;
+            int itemPerStamp = 50;
             for(int i = 0; i < N; i++){
                 if(itemPerStamp == 0){
                     itemPerStamp = 1 + rand.nextInt(100);
                     timestamp++;
                 }
 
-                String nextStreamItem = keys[1 + rand.nextInt(1000)];
+                int k = 1 + rand.nextInt(999);
+                String nextStreamItem = keys[k];
                 String toWrite = String.format("%d, %d, %s\n", timestamp, id, nextStreamItem);
                 myWriter.write(toWrite);
 
@@ -123,18 +112,18 @@ public class SimilarityJoinsUtil {
                     .forEach(l -> records.addFirst(new Tuple3<Long,Integer,String>(Long.parseLong(l[0]), Integer.parseInt(l[1]), l[2])));
         }
         try {
-            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/dummyStreamGroundTruth.txt");
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/10KwordStreamGroundTruth.txt");
             while (!records.isEmpty()) {
                 Tuple3<Long,Integer,String> toCompare = records.poll();
                 Double[] comEmb = wordEmbeddings.get(toCompare.f2);
                 for(Tuple3<Long,Integer,String> r : records){
                     Double[] emb = wordEmbeddings.get(r.f2);
                     Double dist = CosineDistance(comEmb, emb);
-                    if(toCompare.f1 == 615 && r.f1==0){
-                        System.out.println(dist);
-                    }
+//                    if(toCompare.f1 == 615 && r.f1==0){
+//                        System.out.println(dist);
+//                    }
                     if(dist < threshold){
-                        System.out.format("%d, %d, %f\n", toCompare.f1, r.f1, dist);
+//                        System.out.format("%d, %d, %f\n", toCompare.f1, r.f1, dist);
                         String toWrite = new Tuple2<Integer, Integer>(toCompare.f1, r.f1).toString().replaceAll("\\(","").replaceAll("\\)","") + "\n";
                         myWriter.write(toWrite);
                     }
@@ -164,7 +153,9 @@ public class SimilarityJoinsUtil {
         HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
         wordEmbeddings = readEmbeddings("wiki-news-300d-1K.vec");
 
-        createGroundTruth("dummyStream.txt", wordEmbeddings, 0.3);
+        System.out.println(wordEmbeddings.keySet().size());
+        createStreamFile(wordEmbeddings, 10000);
+        createGroundTruth("10KwordStream.txt", wordEmbeddings, 0.3);
 
     }
 

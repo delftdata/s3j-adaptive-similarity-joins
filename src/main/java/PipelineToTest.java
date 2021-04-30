@@ -23,14 +23,14 @@ public class PipelineToTest {
 
         CollectSink.values.clear();
 
-        final OutputTag<Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>> sideStats =
-                new OutputTag<Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>>("stats"){};
+        final OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>> sideStats =
+                new OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>>("stats"){};
 
         DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream(inputFileName);
 
         DataStream<Tuple6<Integer,String,Integer,Long,Integer,String>> ppData = data.flatMap(new onlinePartitioningForSsj.PhysicalPartitioner("wiki-news-300d-1K.vec", 0.3, SimilarityJoinsUtil.RandomCentroids(10),(env.getMaxParallelism()/env.getParallelism())+1));
 
-        DataStream<Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>> partitionedData = ppData
+        DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>> partitionedData = ppData
                 .keyBy(t-> t.f0)
                 .flatMap(new onlinePartitioningForSsj.AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism())+1));
 
@@ -59,11 +59,11 @@ public class PipelineToTest {
         }
     }
 
-    private static class Map2ID implements MapFunction<Tuple3<Boolean, Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>,Tuple8<Integer,String,Integer,String,Integer,Long,Integer,String>>, Tuple2<Integer,Integer>> {
+    private static class Map2ID implements MapFunction<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>, Tuple2<Integer,Integer>> {
 
         @Override
-        public Tuple2<Integer, Integer> map(Tuple3<Boolean, Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>, Tuple8<Integer, String, Integer, String, Integer, Long, Integer, String>> t) throws Exception {
-            return new Tuple2<>(t.f1.f6, t.f2.f6);
+        public Tuple2<Integer, Integer> map(Tuple3<Boolean, Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>, Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>> t) throws Exception {
+            return new Tuple2<>(t.f1.f7, t.f2.f7);
         }
     }
 
