@@ -1,5 +1,6 @@
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.math3.ml.distance.EuclideanDistance;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 
@@ -10,6 +11,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 public class SimilarityJoinsUtil {
@@ -105,6 +107,38 @@ public class SimilarityJoinsUtil {
         }
     }
 
+    public static void create2DArrayStream(int N) throws Exception{
+        try {
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/1K_2D_Array_Stream.txt");
+            Random rand = new Random(1000);
+            int itemPerStamp = 20;
+            int timestamp = 0;
+            int id = 0;
+            for(int i = 0; i < N; i++){
+                if(itemPerStamp == 0){
+                    itemPerStamp = 20 + rand.nextInt(80);
+                    timestamp++;
+                }
+
+                Double[] nextStreamItem = new Double[2];
+                nextStreamItem[0] = rand.nextDouble() * 2 - 1;
+                nextStreamItem[1] = rand.nextDouble() * 2 - 1;
+
+                String toWrite = String.format("%d, %d, %s\n", timestamp, id, Arrays.toString(nextStreamItem));
+                myWriter.write(toWrite);
+
+                id++;
+                itemPerStamp--;
+            }
+            myWriter.close();
+        }
+        catch(Exception e){
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
     public static void createGroundTruth(String streamFileName, HashMap<String, Double[]> wordEmbeddings, Double threshold) throws Exception{
         LinkedList<Tuple3<Long,Integer,String>> records = new LinkedList<>();
         try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+streamFileName+".txt"),Charset.defaultCharset())) {
@@ -139,6 +173,52 @@ public class SimilarityJoinsUtil {
 
     }
 
+    public static void create2DGroundTruth(String streamFileName, Double threshold) throws Exception{
+        LinkedList<Tuple3<Long,Integer,Double[]>> records = new LinkedList<>();
+        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+streamFileName+".txt"),Charset.defaultCharset())) {
+            lines.map(new Function<String, Tuple3<Long, Integer, Double[]>>() {
+                @Override
+                public Tuple3<Long, Integer, Double[]> apply(String s) {
+                    String[] splitedString = s.split(", ", 3);
+                    Double[] arr2D = new Double[2];
+
+                    int counter = 0;
+                    for(String d : splitedString[2].split(", ")){
+                        arr2D[counter] = Double.parseDouble(d.replaceAll("[\\],\\[]", ""));
+                        counter++;
+                    }
+                    return new Tuple3<Long,Integer,Double[]>(Long.parseLong(splitedString[0]), Integer.parseInt(splitedString[1]), arr2D);
+                }
+            })
+                    .forEach(records::addFirst);
+        }
+        try {
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/"+streamFileName+"GroundTruth.txt");
+            while (!records.isEmpty()) {
+                Tuple3<Long,Integer,Double[]> toCompare = records.poll();
+                Double[] comEmb = toCompare.f2;
+                for(Tuple3<Long,Integer,Double[]> r : records){
+                    Double[] emb = r.f2;
+                    Double dist = CosineDistance(comEmb, emb);
+//                    if(toCompare.f1 == 615 && r.f1==0){
+//                        System.out.println(dist);
+//                    }
+                    if(dist < threshold){
+//                        System.out.format("%d, %d, %f\n", toCompare.f1, r.f1, dist);
+                        String toWrite = new Tuple2<Integer, Integer>(toCompare.f1, r.f1).toString().replaceAll("\\(","").replaceAll("\\)","") + "\n";
+                        myWriter.write(toWrite);
+                    }
+                }
+            }
+            myWriter.close();
+        }
+        catch (Exception e) {
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
     public static HashMap<String, Double[]> readEmbeddings(String file4WE) throws Exception{
         HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
         try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+file4WE),Charset.defaultCharset()).skip(1)) {
@@ -150,12 +230,8 @@ public class SimilarityJoinsUtil {
 
     public static void main(String[] args) throws Exception{
 
-        HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
-        wordEmbeddings = readEmbeddings("wiki-news-300d-1K.vec");
-
-        System.out.println(wordEmbeddings.keySet().size());
-        createStreamFile(wordEmbeddings, 1000);
-        createGroundTruth("1KwordStream_v2", wordEmbeddings, 0.3);
+        create2DArrayStream(1000);
+        create2DGroundTruth("1K_2D_Array_Stream", 0.3);
 
     }
 
