@@ -23,22 +23,22 @@ public class PipelineToTest {
 
         CollectSink.values.clear();
 
-        final OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>> sideStats =
-                new OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>>("stats"){};
+        final OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
+                new OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
 
-        DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream(inputFileName);
+        DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.createSimpleWordsStream(inputFileName).map(new onlinePartitioningForSsj.WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
 
-        DataStream<Tuple6<Integer,String,Integer,Long,Integer,String>> ppData = data.flatMap(new onlinePartitioningForSsj.PhysicalPartitioner("wiki-news-300d-1K.vec", 0.3, SimilarityJoinsUtil.RandomCentroids(10),(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new onlinePartitioningForSsj.PhysicalPartitioner(0.3, SimilarityJoinsUtil.RandomCentroids(10),(env.getMaxParallelism()/env.getParallelism())+1));
 
-        DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>> partitionedData = ppData
+        DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> partitionedData = ppData
                 .keyBy(t-> t.f0)
-                .flatMap(new onlinePartitioningForSsj.AdaptivePartitioner("wiki-news-300d-1K.vec", 0.3, (env.getMaxParallelism()/env.getParallelism())+1));
+                .flatMap(new onlinePartitioningForSsj.AdaptivePartitioner(0.3, (env.getMaxParallelism()/env.getParallelism())+1));
 
         partitionedData
                 .keyBy(new onlinePartitioningForSsj.LogicalKeySelector())
                 .window(GlobalWindows.create())
                 .trigger(new onlinePartitioningForSsj.CustomOnElementTrigger())
-                .process(new onlinePartitioningForSsj.SimilarityJoin("wiki-news-300d-1K.vec", 0.3))
+                .process(new onlinePartitioningForSsj.SimilarityJoin(0.3))
                 .process(new onlinePartitioningForSsj.CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());
@@ -59,10 +59,10 @@ public class PipelineToTest {
         }
     }
 
-    private static class Map2ID implements MapFunction<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,String>>, Tuple2<Integer,Integer>> {
+    private static class Map2ID implements MapFunction<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>, Tuple2<Integer,Integer>> {
 
         @Override
-        public Tuple2<Integer, Integer> map(Tuple3<Boolean, Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>, Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String>> t) throws Exception {
+        public Tuple2<Integer, Integer> map(Tuple3<Boolean, Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>, Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> t) throws Exception {
             return new Tuple2<>(t.f1.f7, t.f2.f7);
         }
     }

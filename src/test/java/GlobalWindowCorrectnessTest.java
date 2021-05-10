@@ -37,18 +37,18 @@ public class GlobalWindowCorrectnessTest {
     public void testJoinResults() throws Exception{
 
         PipelineToTest pipeline = new PipelineToTest();
-        List<Tuple2<Integer,Integer>> results = pipeline.run(10, "1KwordStream_v2.txt");
+        List<Tuple2<Integer,Integer>> results = pipeline.run(10, "wordStream.txt");
 
 //        System.out.println(CollectSink.values.toString());
 //        System.out.println(getGroundTruth("wordStreamGroundTruth.txt"));
-        for(Tuple2<Integer,Integer> v : getGroundTruth("1KwordStream_v2GroundTruth.txt")){
+        for(Tuple2<Integer,Integer> v : getGroundTruth("wordStreamGroundTruth.txt")){
             boolean cont = results.contains(v);
             if(!cont) {
                 System.out.format("(%d,%d): %b\n", v.f0, v.f1, cont);
             }
         }
-        assertTrue(results.containsAll(getGroundTruth("1KwordStream_v2GroundTruth.txt")));
-        assertTrue(getGroundTruth("1KwordStream_v2GroundTruth.txt").containsAll(results));
+        assertTrue(results.containsAll(getGroundTruth("wordStreamGroundTruth.txt")));
+        assertTrue(getGroundTruth("wordStreamGroundTruth.txt").containsAll(results));
 
     }
 
