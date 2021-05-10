@@ -73,6 +73,15 @@ public class SimilarityJoinsUtil {
         return doubleArray;
     }
 
+    static public double nextSkewedBoundedDouble(double min, double max, double skew, double bias, Random rand) {
+        double range = max - min;
+        double mid = min + range / 2.0;
+        double unitGaussian = rand.nextGaussian();
+        double biasFactor = Math.exp(bias);
+        double retval = mid+(range*(biasFactor/(biasFactor+Math.exp(-unitGaussian/skew))-0.5));
+        return retval;
+    }
+
     public static void createStreamFile(HashMap<String, Double[]> embeddings, int N) throws Exception{
 
         Set<String> setKeys = embeddings.keySet();
@@ -109,7 +118,7 @@ public class SimilarityJoinsUtil {
 
     public static void create2DArrayStream(int N) throws Exception{
         try {
-            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/1K_2D_Array_Stream.txt");
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/100_2D_Array_Stream.txt");
             Random rand = new Random(1000);
             int itemPerStamp = 20;
             int timestamp = 0;
@@ -121,6 +130,8 @@ public class SimilarityJoinsUtil {
                 }
 
                 Double[] nextStreamItem = new Double[2];
+//                nextStreamItem[0] = nextSkewedBoundedDouble(0, 10, 1, 0, rand) * 2 - 10;
+//                nextStreamItem[1] = nextSkewedBoundedDouble(0, 10, 1, 0, rand) * 2 - 10;
                 nextStreamItem[0] = rand.nextDouble() * 2 - 1;
                 nextStreamItem[1] = rand.nextDouble() * 2 - 1;
 
@@ -230,8 +241,8 @@ public class SimilarityJoinsUtil {
 
     public static void main(String[] args) throws Exception{
 
-        create2DArrayStream(1000);
-        create2DGroundTruth("1K_2D_Array_Stream", 0.3);
+        create2DArrayStream(100);
+        create2DGroundTruth("100_2D_Array_Stream", 0.3);
 
     }
 
