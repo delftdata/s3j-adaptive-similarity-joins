@@ -78,14 +78,14 @@ public class SimilarityJoinsUtil {
         String[] keys = setKeys.toArray(new String[arrSize]);
 
         try {
-            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/10KwordStream.txt");
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/1KwordStream_v2.txt");
             Random rand = new Random(1000);
             int timestamp = 0;
             int id = 0;
-            int itemPerStamp = 50;
+            int itemPerStamp = 20;
             for(int i = 0; i < N; i++){
                 if(itemPerStamp == 0){
-                    itemPerStamp = 1 + rand.nextInt(100);
+                    itemPerStamp = 20 + rand.nextInt(80);
                     timestamp++;
                 }
 
@@ -107,12 +107,12 @@ public class SimilarityJoinsUtil {
 
     public static void createGroundTruth(String streamFileName, HashMap<String, Double[]> wordEmbeddings, Double threshold) throws Exception{
         LinkedList<Tuple3<Long,Integer,String>> records = new LinkedList<>();
-        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+streamFileName),Charset.defaultCharset())) {
+        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+streamFileName+".txt"),Charset.defaultCharset())) {
             lines.map(l -> l.split(", "))
                     .forEach(l -> records.addFirst(new Tuple3<Long,Integer,String>(Long.parseLong(l[0]), Integer.parseInt(l[1]), l[2])));
         }
         try {
-            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/10KwordStreamGroundTruth.txt");
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/"+streamFileName+"GroundTruth.txt");
             while (!records.isEmpty()) {
                 Tuple3<Long,Integer,String> toCompare = records.poll();
                 Double[] comEmb = wordEmbeddings.get(toCompare.f2);
@@ -154,8 +154,8 @@ public class SimilarityJoinsUtil {
         wordEmbeddings = readEmbeddings("wiki-news-300d-1K.vec");
 
         System.out.println(wordEmbeddings.keySet().size());
-        createStreamFile(wordEmbeddings, 10000);
-        createGroundTruth("10KwordStream.txt", wordEmbeddings, 0.3);
+        createStreamFile(wordEmbeddings, 1000);
+        createGroundTruth("1KwordStream_v2", wordEmbeddings, 0.3);
 
     }
 

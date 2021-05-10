@@ -210,7 +210,7 @@ public class onlinePartitioningForSsj {
                             Tuple2<Integer, Double> temp = distances.poll();
                             if (temp.f0 == inner) {
                                 continue;
-                            } else if (temp.f1 > 1.5 * dist_thresh) {
+                            } else if ((temp.f1 > 2 * dist_thresh) || (!isOutlier && (temp.f1 > 1.5 * dist_thresh))) {
                                 break;
                             } else {
                                 if (inner > temp.f0) {
@@ -293,7 +293,7 @@ public class onlinePartitioningForSsj {
 
             for (Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, String> t : tuplesList ) {
 
-//                LOG.info(newTuple.toString()+", "+t.toString());
+                LOG.info(newTuple.toString()+", "+t.toString());
 
                 boolean exp = (
                                 (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
@@ -798,7 +798,7 @@ public class onlinePartitioningForSsj {
 
         LOG.info("Enter main.");
 
-        DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream("wordStream.txt");
+        DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream("10KwordStream.txt");
 
         DataStream<Tuple6<Integer,String,Integer,Long,Integer,String>> ppData = data.
                 flatMap(new PhysicalPartitioner("wiki-news-300d-1K.vec", 0.3, SimilarityJoinsUtil.RandomCentroids(10), (env.getMaxParallelism()/env.getParallelism())+1));
