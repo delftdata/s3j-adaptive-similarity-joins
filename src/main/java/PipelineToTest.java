@@ -1,5 +1,6 @@
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -7,11 +8,14 @@ import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.util.OutputTag;
 
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 public class PipelineToTest {
+
+    static String pwd = Paths.get("").toAbsolutePath().toString();
 
     public List<Tuple2<Integer,Integer>> run(int givenParallelism, String inputFileName) throws Exception{
 
@@ -26,9 +30,11 @@ public class PipelineToTest {
         final OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
                 new OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
 
-        DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.createSimpleWordsStream(inputFileName).map(new onlinePartitioningForSsj.WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
+        DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
 
-        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new onlinePartitioningForSsj.PhysicalPartitioner(0.3, SimilarityJoinsUtil.RandomCentroids(10),(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new onlinePartitioningForSsj.PhysicalPartitioner(0.3, SimilarityJoinsUtil.RandomCentroids(10, 2),(env.getMaxParallelism()/env.getParallelism())+1));
+
+        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
 
         DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> partitionedData = ppData
                 .keyBy(t-> t.f0)

@@ -60,7 +60,7 @@ public class onlinePartitioningForSsj {
             int min_idx = 0;
             double min_dist = 1000000000.0;
             for(Map.Entry<Integer, Double[]> centroid : partCentroids.entrySet()){
-                double temp = SimilarityJoinsUtil.CosineDistance(centroid.getValue(), t.f2);
+                double temp = SimilarityJoinsUtil.AngularDistance(centroid.getValue(), t.f2);
                 if (min_dist > temp){
                     min_idx = centroid.getKey();
                     min_dist = temp;
@@ -70,8 +70,13 @@ public class onlinePartitioningForSsj {
             collector.collect(new Tuple6<Integer,String,Integer,Long,Integer,Double[]>(computePartitionID(min_idx), "pInner", computePartitionID(min_idx), t.f0, t.f1, t.f2));
 
             for(int i=0; i<distances.length ; i++) {
+//                if(t.f1 == 994 || t.f1 == 830){
+//                    System.out.println(t.f1);
+//                    System.out.format("part: %d, dist: %f, min_dist: %f, exp: %b\n", i, distances[i], min_dist, (distances[i] < min_dist + 2 * dist_thresh));
+//                    System.out.format("2nd exp: %b\n", (min_idx < i) ^ (min_idx + i) % 2 == 1);
+//                }
                 if (i == min_idx) continue;
-                else if ((distances[i] < min_dist + 2 * dist_thresh) && ((min_idx < i) ^ (min_idx + i) % 2 == 1)) {
+                else if ((distances[i] <= min_dist + 2 * dist_thresh) && ((min_idx < i) ^ (min_idx + i) % 2 == 1)) {
                     collector.collect(new Tuple6<Integer, String, Integer, Long, Integer, Double[]>(
                             computePartitionID(i), "pOuter", computePartitionID(min_idx), t.f0, t.f1, t.f2
                     ));
@@ -130,7 +135,7 @@ public class onlinePartitioningForSsj {
 
             if (t.f1.equals("pOuter")) {
                 for (Map.Entry<Integer, Tuple3<Long, Integer, Double[]>> centroid : partitions.entrySet()) {
-                    Double dist = SimilarityJoinsUtil.CosineDistance(emb, centroid.getValue().f2);
+                    Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f2);
                     distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                     if (dist <= 2 * dist_thresh) {
@@ -147,7 +152,7 @@ public class onlinePartitioningForSsj {
                     LOG.info(new Tuple9<>(1, "inner", t.f0, t.f1, t.f2, 1,t.f3, t.f4, t.f5).toString());
                     for(Tuple6<Integer,String,Integer,Long,Integer,Double[]> po : phyOuters.get()){
                         Double[] temp = po.f5;
-                        if(SimilarityJoinsUtil.CosineDistance(emb, temp) <= 2 * dist_thresh){
+                        if(SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh){
                             collector.collect(new Tuple9<>(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5));
                             LOG.info(new Tuple9<>(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
                         }
@@ -155,7 +160,7 @@ public class onlinePartitioningForSsj {
                 } else {
                     int inner;
                     for (Map.Entry<Integer, Tuple3<Long, Integer, Double[]>> centroid : partitions.entrySet()) {
-                        Double dist = SimilarityJoinsUtil.CosineDistance(emb, centroid.getValue().f2);
+                        Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f2);
                         distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                         if (dist <= 0.5 * dist_thresh) {
@@ -175,15 +180,15 @@ public class onlinePartitioningForSsj {
                             LOG.info(new Tuple9<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5).toString());
                             for(Tuple6<Integer,String,Integer,Long,Integer,Double[]> po : phyOuters.get()){
                                 Double[] temp = po.f5;
-                                if(SimilarityJoinsUtil.CosineDistance(emb, temp) <= 2 * dist_thresh){
+                                if(SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh){
                                     collector.collect(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5));
                                     LOG.info(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
                                 }
                             }
                             for (Tuple7<Integer, Integer, String, Integer, Long, Integer, Double[]> out : outliers.get()) {
                                 Double[] temp = out.f6;
-                                if (SimilarityJoinsUtil.CosineDistance(emb, temp) < 1.5 * dist_thresh) {
-                                    if (SimilarityJoinsUtil.CosineDistance(emb, partitions.get(out.f0).f2) > 1.5 * dist_thresh) {
+                                if (SimilarityJoinsUtil.AngularDistance(emb, temp) < 1.5 * dist_thresh) {
+                                    if (SimilarityJoinsUtil.AngularDistance(emb, partitions.get(out.f0).f2) > 1.5 * dist_thresh) {
                                         collector.collect(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6));
                                         LOG.info(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6).toString());
                                     }
@@ -217,7 +222,7 @@ public class onlinePartitioningForSsj {
                                     Double[] tempEmb = partitions.get(temp.f0).f2;
                                     Double[] innerEmb = partitions.get(inner).f2;
 
-                                    if (SimilarityJoinsUtil.CosineDistance(tempEmb, innerEmb) > 1.5 * dist_thresh) {
+                                    if (SimilarityJoinsUtil.AngularDistance(tempEmb, innerEmb) > 1.5 * dist_thresh) {
                                         collector.collect(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
                                         LOG.info(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
                                     }
@@ -306,7 +311,7 @@ public class onlinePartitioningForSsj {
                     if(newTuple.f7 > t.f7) {
                         collector.collect(
                                 new Tuple3<>(
-                                        (SimilarityJoinsUtil.CosineDistance(newTupleEmbed, tEmbed) < dist_thresh),
+                                        (SimilarityJoinsUtil.AngularDistance(newTupleEmbed, tEmbed) < dist_thresh),
                                         newTuple,
                                         t
                                 )
@@ -315,7 +320,7 @@ public class onlinePartitioningForSsj {
                     else{
                         collector.collect(
                                 new Tuple3<>(
-                                        (SimilarityJoinsUtil.CosineDistance(newTupleEmbed, tEmbed) < dist_thresh),
+                                        (SimilarityJoinsUtil.AngularDistance(newTupleEmbed, tEmbed) < dist_thresh),
                                         t,
                                         newTuple
                                 )
@@ -812,12 +817,12 @@ public class onlinePartitioningForSsj {
 
         LOG.info("Enter main.");
 
-        DataStream<Tuple3<Long, Integer, String>> data = streamFactory.createSimpleWordsStream("wordStream.txt");
+        DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream("1K_2D_Array_Stream.txt");
+        data.print();
+//        DataStream<Tuple3<Long, Integer, Double[]>> embeddedData = data.map(new WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
 
-        DataStream<Tuple3<Long, Integer, Double[]>> embeddedData = data.map(new WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
-
-        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = embeddedData.
-                flatMap(new PhysicalPartitioner(0.3, SimilarityJoinsUtil.RandomCentroids(10), (env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.
+                flatMap(new PhysicalPartitioner(0.3, SimilarityJoinsUtil.RandomCentroids(10, 2), (env.getMaxParallelism()/env.getParallelism())+1));
 
 
         DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> lpData = ppData

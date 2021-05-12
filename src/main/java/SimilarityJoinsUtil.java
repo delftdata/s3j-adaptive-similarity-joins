@@ -3,6 +3,7 @@ import org.apache.commons.math3.ml.distance.EuclideanDistance;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import scala.Int;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -18,20 +19,26 @@ public class SimilarityJoinsUtil {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
-    public static HashMap<Integer, Double[]> RandomCentroids(int numCentroids){
+    public static HashMap<Integer, Double[]> RandomCentroids(int numCentroids, int dimension){
 
         Random rand = new Random(42);
         HashMap<Integer, Double[]> centroids = new HashMap<Integer, Double[]>();
 
         for(int i=0; i<numCentroids; i++){
-            Double[] cent = new Double[300];
-            for(int j=0; j<300; j++){
+            Double[] cent = new Double[dimension];
+            for(int j=0; j<dimension; j++){
                 cent[j] = rand.nextDouble()*2 - 1;
             }
             centroids.put(i, cent);
         }
 
         return centroids;
+    }
+
+    public static Double AngularDistance(Double[] vectorA, Double[] vectorB){
+        double p = Math.PI;
+        Double cos_sim = CosineSimilarity(vectorA, vectorB);
+        return Math.acos(cos_sim)/p;
     }
 
     public static Double CosineSimilarity(Double[] vectorA, Double[] vectorB){
@@ -63,8 +70,8 @@ public class SimilarityJoinsUtil {
         return new org.apache.commons.math3.ml.distance.EuclideanDistance().compute(vecA, vecB);
     }
 
-    public static Double[] arrayStringToDouble(String[] stringArray){
-        Double[] doubleArray = new Double[300];
+    public static Double[] arrayStringToDouble(String[] stringArray, int dimension){
+        Double[] doubleArray = new Double[dimension];
         int counter = 0;
         for(String s : stringArray) {
             doubleArray[counter] = Double.parseDouble(s);
@@ -195,7 +202,7 @@ public class SimilarityJoinsUtil {
 
                     int counter = 0;
                     for(String d : splitedString[2].split(", ")){
-                        arr2D[counter] = Double.parseDouble(d.replaceAll("[\\],\\[]", ""));
+                        arr2D[counter] = Double.parseDouble(d.replaceAll("[\\]\\[]", ""));
                         counter++;
                     }
                     return new Tuple3<Long,Integer,Double[]>(Long.parseLong(splitedString[0]), Integer.parseInt(splitedString[1]), arr2D);
@@ -210,10 +217,10 @@ public class SimilarityJoinsUtil {
                 Double[] comEmb = toCompare.f2;
                 for(Tuple3<Long,Integer,Double[]> r : records){
                     Double[] emb = r.f2;
-                    Double dist = CosineDistance(comEmb, emb);
-//                    if(toCompare.f1 == 615 && r.f1==0){
-//                        System.out.println(dist);
-//                    }
+                    Double dist = AngularDistance(comEmb, emb);
+                    if(toCompare.f1 == 992 && r.f1==244){
+                        System.out.println(dist);
+                    }
                     if(dist < threshold){
 //                        System.out.format("%d, %d, %f\n", toCompare.f1, r.f1, dist);
                         String toWrite = new Tuple2<Integer, Integer>(toCompare.f1, r.f1).toString().replaceAll("\\(","").replaceAll("\\)","") + "\n";
@@ -234,16 +241,20 @@ public class SimilarityJoinsUtil {
         HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
         try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+file4WE),Charset.defaultCharset()).skip(1)) {
             lines.map(l -> l.split(" ",2))
-                    .forEach(l -> wordEmbeddings.put(l[0], arrayStringToDouble(l[1].split(" "))));
+                    .forEach(l -> wordEmbeddings.put(l[0], arrayStringToDouble(l[1].split(" "), 300)));
         }
         return wordEmbeddings;
     }
 
     public static void main(String[] args) throws Exception{
 
-        create2DArrayStream(100);
-        create2DGroundTruth("100_2D_Array_Stream", 0.3);
-
+//        create2DArrayStream(1000);
+        create2DGroundTruth("1K_2D_Array_Stream", 0.3);
+//        HashMap<Integer, Double[]> cent = SimilarityJoinsUtil.RandomCentroids(10, 2);
+//        for(Integer k : cent.keySet()){
+//            System.out.println(Arrays.toString(cent.get(k)));
+//        }
+//        System.out.println(CosineDistance(cent.get(3), cent.get(6)));
     }
 
 
