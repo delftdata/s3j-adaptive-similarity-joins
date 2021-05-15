@@ -13,11 +13,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.slf4j.Logger;
+
+
 public class PipelineToTest {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
-    public List<Tuple2<Integer,Integer>> run(int givenParallelism, String inputFileName) throws Exception{
+    public List<Tuple2<Integer,Integer>> run(int givenParallelism, String inputFileName, Logger LOG) throws Exception{
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -32,19 +35,19 @@ public class PipelineToTest {
 
         DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
 
-        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new onlinePartitioningForSsj.PhysicalPartitioner(0.3, SimilarityJoinsUtil.RandomCentroids(10, 2),(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new PhysicalPartitioner(0.3, SimilarityJoinsUtil.RandomCentroids(10, 2),(env.getMaxParallelism()/env.getParallelism())+1));
 
         ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
 
         DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> partitionedData = ppData
                 .keyBy(t-> t.f0)
-                .flatMap(new onlinePartitioningForSsj.AdaptivePartitioner(0.3, (env.getMaxParallelism()/env.getParallelism())+1));
+                .flatMap(new AdaptivePartitioner(0.3, (env.getMaxParallelism()/env.getParallelism())+1, LOG));
 
         partitionedData
                 .keyBy(new onlinePartitioningForSsj.LogicalKeySelector())
                 .window(GlobalWindows.create())
                 .trigger(new onlinePartitioningForSsj.CustomOnElementTrigger())
-                .process(new onlinePartitioningForSsj.SimilarityJoin(0.3))
+                .process(new SimilarityJoin(0.3, LOG))
                 .process(new onlinePartitioningForSsj.CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());

@@ -35,210 +35,6 @@ public class onlinePartitioningForSsj {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
-    public static class PhysicalPartitioner implements FlatMapFunction<Tuple3<Long,Integer,Double[]>, Tuple6<Integer,String,Integer, Long,Integer,Double[]>>{
-
-        Double dist_thresh;
-        HashMap<Integer, Double[]> partCentroids;
-        int keyRange;
-
-        public PhysicalPartitioner(Double dist_thresh, HashMap<Integer, Double[]> randomCentroids, int keyRange) throws Exception{
-            this.dist_thresh = dist_thresh;
-            this.partCentroids = randomCentroids;
-            this.keyRange = keyRange;
-        }
-
-        @Override
-        public void flatMap(Tuple3<Long, Integer, Double[]> t, Collector<Tuple6<Integer, String, Integer, Long, Integer, Double[]>> collector) throws Exception {
-
-            int numPartitions = 0;
-            for (Map.Entry<Integer, Double[]> e : partCentroids.entrySet()){
-                numPartitions++;
-            }
-//            LOG.info(partCentroids.entrySet().toString());
-
-            Double[] distances = new Double[numPartitions];
-            int min_idx = 0;
-            double min_dist = 1000000000.0;
-            for(Map.Entry<Integer, Double[]> centroid : partCentroids.entrySet()){
-                double temp = SimilarityJoinsUtil.AngularDistance(centroid.getValue(), t.f2);
-                if (min_dist > temp){
-                    min_idx = centroid.getKey();
-                    min_dist = temp;
-                }
-                distances[centroid.getKey()] = temp;
-            }
-            collector.collect(new Tuple6<Integer,String,Integer,Long,Integer,Double[]>(computePartitionID(min_idx), "pInner", computePartitionID(min_idx), t.f0, t.f1, t.f2));
-
-            for(int i=0; i<distances.length ; i++) {
-//                if(t.f1 == 994 || t.f1 == 830){
-//                    System.out.println(t.f1);
-//                    System.out.format("part: %d, dist: %f, min_dist: %f, exp: %b\n", i, distances[i], min_dist, (distances[i] < min_dist + 2 * dist_thresh));
-//                    System.out.format("2nd exp: %b\n", (min_idx < i) ^ (min_idx + i) % 2 == 1);
-//                }
-                if (i == min_idx) continue;
-                else if ((distances[i] <= min_dist + 2 * dist_thresh) && ((min_idx < i) ^ (min_idx + i) % 2 == 1)) {
-                    collector.collect(new Tuple6<Integer, String, Integer, Long, Integer, Double[]>(
-                            computePartitionID(i), "pOuter", computePartitionID(min_idx), t.f0, t.f1, t.f2
-                    ));
-                }
-            }
-        }
-
-        int computePartitionID(int groupID){
-            return groupID*keyRange;
-        }
-    }
-
-    public static class AdaptivePartitioner extends
-            RichFlatMapFunction<Tuple6<Integer,String,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> {
-
-        Double dist_thresh;
-        int keyRange;
-        HashMap<Integer, Tuple3<Long, Integer, Double[]>> partitions = new HashMap<>();
-        ListState<Tuple7<Integer,Integer,String,Integer,Long,Integer,Double[]>> outliers;
-        ListState<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> phyOuters;
-
-        public AdaptivePartitioner(Double dist_thresh, int keyRange) throws Exception{
-            this.dist_thresh = dist_thresh;
-            this.keyRange = keyRange;
-        }
-
-        @Override
-        public void open(Configuration config){
-            ListStateDescriptor<Tuple7<Integer, Integer,String,Integer,Long,Integer,Double[]>> outliersDesc =
-                    new ListStateDescriptor<Tuple7<Integer, Integer, String, Integer, Long, Integer, Double[]>>(
-                            "outliers",
-                            TypeInformation.of(new TypeHint<Tuple7<Integer, Integer, String, Integer, Long, Integer, Double[]>>() {})
-                            );
-            outliers = getRuntimeContext().getListState(outliersDesc);
-
-            ListStateDescriptor<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> phyOutersDesc =
-                    new ListStateDescriptor<Tuple6<Integer, String, Integer, Long, Integer, Double[]>>(
-                            "phyOuters",
-                            TypeInformation.of(new TypeHint<Tuple6<Integer, String, Integer, Long, Integer, Double[]>>() {})
-                    );
-            phyOuters = getRuntimeContext().getListState(phyOutersDesc);
-        }
-
-
-        @Override
-        public void flatMap(Tuple6<Integer, String, Integer, Long, Integer, Double[]> t, Collector<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> collector)
-                throws Exception {
-
-            Double[] emb = t.f5;
-            int part_num = partitions.size();
-
-            PriorityQueue<Tuple2<Integer, Double>> distances =
-                    new PriorityQueue<Tuple2<Integer, Double>>(new CustomComparator());
-
-            boolean isOutlier = false;
-
-            if (t.f1.equals("pOuter")) {
-                for (Map.Entry<Integer, Tuple3<Long, Integer, Double[]>> centroid : partitions.entrySet()) {
-                    Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f2);
-                    distances.add(new Tuple2<>(centroid.getKey(), dist));
-
-                    if (dist <= 2 * dist_thresh) {
-                        collector.collect(new Tuple9<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2, -1, t.f3, t.f4, t.f5));
-                        LOG.info(new Tuple9<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2, -1, t.f3, t.f4, t.f5).toString());
-                    }
-                }
-                phyOuters.add(t);
-            }
-            else if (t.f1.equals("pInner")) {
-                if (part_num == 0) {
-                    partitions.put(1, new Tuple3<Long, Integer, Double[]>(t.f3, t.f4, emb));
-                    collector.collect(new Tuple9<>(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5));
-                    LOG.info(new Tuple9<>(1, "inner", t.f0, t.f1, t.f2, 1,t.f3, t.f4, t.f5).toString());
-                    for(Tuple6<Integer,String,Integer,Long,Integer,Double[]> po : phyOuters.get()){
-                        Double[] temp = po.f5;
-                        if(SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh){
-                            collector.collect(new Tuple9<>(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5));
-                            LOG.info(new Tuple9<>(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
-                        }
-                    }
-                } else {
-                    int inner;
-                    for (Map.Entry<Integer, Tuple3<Long, Integer, Double[]>> centroid : partitions.entrySet()) {
-                        Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f2);
-                        distances.add(new Tuple2<>(centroid.getKey(), dist));
-
-                        if (dist <= 0.5 * dist_thresh) {
-                            collector.collect(new Tuple9<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2, centroid.getKey(), t.f3, t.f4, t.f5));
-                            LOG.info(new Tuple9<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2, centroid.getKey(), t.f3, t.f4, t.f5).toString());
-                            inner = centroid.getKey();
-                        }
-                    }
-//                    if(t.f3.equals(993)){
-//                        System.out.println(distances.toString());
-//                    }
-                    try {
-                        if (distances.peek().f1 > dist_thresh) {
-                            inner = part_num + 1;
-                            partitions.put(part_num + 1, new Tuple3<>(t.f3, t.f4, emb));
-                            collector.collect(new Tuple9<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5));
-                            LOG.info(new Tuple9<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5).toString());
-                            for(Tuple6<Integer,String,Integer,Long,Integer,Double[]> po : phyOuters.get()){
-                                Double[] temp = po.f5;
-                                if(SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh){
-                                    collector.collect(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5));
-                                    LOG.info(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
-                                }
-                            }
-                            for (Tuple7<Integer, Integer, String, Integer, Long, Integer, Double[]> out : outliers.get()) {
-                                Double[] temp = out.f6;
-                                if (SimilarityJoinsUtil.AngularDistance(emb, temp) < 1.5 * dist_thresh) {
-                                    if (SimilarityJoinsUtil.AngularDistance(emb, partitions.get(out.f0).f2) > 1.5 * dist_thresh) {
-                                        collector.collect(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6));
-                                        LOG.info(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6).toString());
-                                    }
-                                }
-                            }
-                        } else {
-                            if (distances.peek().f1 > 0.5 * dist_thresh) {
-                                inner = distances.peek().f0;
-                                outliers.add(new Tuple7<>(inner,t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
-                                isOutlier = true;
-                                collector.collect(
-                                        new Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2, distances.peek().f0, t.f3, t.f4, t.f5));
-                                LOG.info(new Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2, distances.peek().f0, t.f3, t.f4, t.f5).toString());
-                            } else {
-                                inner = distances.peek().f0;
-                            }
-                        }
-
-                        while (!distances.isEmpty()) {
-                            Tuple2<Integer, Double> temp = distances.poll();
-                            if (temp.f0 == inner) {
-                                continue;
-                            } else if ((temp.f1 > 2 * dist_thresh) || (!isOutlier && (temp.f1 > 1.5 * dist_thresh))) {
-                                break;
-                            } else {
-                                if (inner > temp.f0) {
-                                    collector.collect(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
-                                    LOG.info(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
-                                }
-                                if (isOutlier && (inner < temp.f0)) {
-                                    Double[] tempEmb = partitions.get(temp.f0).f2;
-                                    Double[] innerEmb = partitions.get(inner).f2;
-
-                                    if (SimilarityJoinsUtil.AngularDistance(tempEmb, innerEmb) > 1.5 * dist_thresh) {
-                                        collector.collect(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
-                                        LOG.info(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
-                                    }
-
-                                }
-                            }
-                        }
-                    } catch (Exception e) {
-                        System.out.println("oups:" + e.getMessage() + " on " + (distances.peek().f0 % 128) / keyRange);
-                        throw e;
-                    }
-                }
-            }
-        }
-    }
-
     public static class CustomOnElementTrigger extends Trigger<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, GlobalWindow>{
 
         @Override
@@ -262,94 +58,6 @@ public class onlinePartitioningForSsj {
         }
     }
 
-    public static class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>,
-                    Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>,
-                    Tuple2<Integer,Integer>,
-                    GlobalWindow> {
-
-        Double dist_thresh;
-
-        public SimilarityJoin(Double dist_thresh)throws Exception{
-            this.dist_thresh = dist_thresh;
-        }
-
-
-        @Override
-        public void process(Tuple2<Integer,Integer> key,
-                          Context ctx,
-                          Iterable<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> tuples,
-                          Collector<Tuple3<Boolean,
-                                  Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>,
-                                  Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>>> collector)
-                throws Exception {
-
-            Iterator<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> tuplesIterator = tuples.iterator();
-            LinkedList<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> tuplesList = new LinkedList<>();
-            tuplesIterator.forEachRemaining(tuplesList::addFirst);
-
-            Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]> newTuple = tuplesList.pollFirst();
-            Double[] newTupleEmbed = newTuple.f8;
-
-            for (Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]> t : tuplesList ) {
-
-                LOG.info(newTuple.toString()+", "+t.toString());
-
-                boolean exp = (
-                                (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
-                                (newTuple.f1.equals("outlier") && t.f1.equals("outlier")) ||
-                                        (newTuple.f1.equals("outlier") && t.f1.equals("inner")) ||
-                                        (newTuple.f1.equals("inner") && t.f1.equals("outlier")) ||
-                                (newTuple.f1.equals("inner") && t.f1.equals("outer")) ||
-                                        (newTuple.f1.equals("outlier") && t.f1.equals("outer") && !t.f7.equals(newTuple.f7)) ||
-                                        (newTuple.f1.equals("outer") && t.f1.equals("outlier") && !t.f7.equals(newTuple.f7)) ||
-                                        (newTuple.f1.equals("ind_outer") && t.f1.equals("inner")) ||
-                                        (newTuple.f1.equals("inner") && t.f1.equals("ind_outer"))
-                        );
-
-                if (exp){
-                    Double[] tEmbed = t.f8;
-                    if(newTuple.f7 > t.f7) {
-                        collector.collect(
-                                new Tuple3<>(
-                                        (SimilarityJoinsUtil.AngularDistance(newTupleEmbed, tEmbed) < dist_thresh),
-                                        newTuple,
-                                        t
-                                )
-                        );
-                    }
-                    else{
-                        collector.collect(
-                                new Tuple3<>(
-                                        (SimilarityJoinsUtil.AngularDistance(newTupleEmbed, tEmbed) < dist_thresh),
-                                        t,
-                                        newTuple
-                                )
-                        );
-                    }
-                }
-                else if(newTuple.f1.equals("inner") && t.f1.equals("inner")){
-                    if(newTuple.f7 > t.f7) {
-                        collector.collect(
-                                new Tuple3<>(
-                                        true,
-                                        newTuple,
-                                        t
-                                )
-                        );
-                    }
-                    else{
-                        collector.collect(
-                                new Tuple3<>(
-                                        true,
-                                        t,
-                                        newTuple
-                                )
-                        );
-                    }
-                }
-            }
-        }
-    }
 
     static public class CustomFiltering extends ProcessFunction<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>,Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> {
 
@@ -807,7 +515,6 @@ public class onlinePartitioningForSsj {
 
 
 
-
     public static void main(String[] args) throws Exception{
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -827,7 +534,7 @@ public class onlinePartitioningForSsj {
 
         DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> lpData = ppData
                 .keyBy(t -> t.f0)
-                .flatMap(new AdaptivePartitioner(0.3, (env.getMaxParallelism()/env.getParallelism())+1));
+                .flatMap(new AdaptivePartitioner(0.3, (env.getMaxParallelism()/env.getParallelism())+1, LOG));
 
 
 
@@ -839,7 +546,7 @@ public class onlinePartitioningForSsj {
                 .keyBy(new LogicalKeySelector())
                 .window(GlobalWindows.create())
                 .trigger(new CustomOnElementTrigger())
-                .process(new SimilarityJoin(0.3))
+                .process(new SimilarityJoin(0.3, LOG))
                 .process(new CustomFiltering(sideStats));
 
         selfJoinedStream.print();

@@ -25,7 +25,7 @@ public class GlobalWindowDuplicateTest {
     public void testDuplicateResults() throws Exception{
 
         PipelineToTest pipeline = new PipelineToTest();
-        List<Tuple2<Integer,Integer>> results = pipeline.run(10, "1K_2D_Array_Stream.txt");
+        List<Tuple2<Integer,Integer>> results = pipeline.run(10, "1K_2D_Array_Stream.txt", LOG);
 
         assertFalse(hasDuplicate(results));
     }
