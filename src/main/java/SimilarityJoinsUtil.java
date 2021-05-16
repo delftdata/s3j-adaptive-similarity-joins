@@ -249,7 +249,7 @@ public class SimilarityJoinsUtil {
     public static void main(String[] args) throws Exception{
 
 //        create2DArrayStream(1000);
-        create2DGroundTruth("1K_2D_Array_Stream", 0.3);
+        create2DGroundTruth("1K_2D_Array_Stream", 0.1);
 //        HashMap<Integer, Double[]> cent = SimilarityJoinsUtil.RandomCentroids(10, 2);
 //        for(Integer k : cent.keySet()){
 //            System.out.println(Arrays.toString(cent.get(k)));

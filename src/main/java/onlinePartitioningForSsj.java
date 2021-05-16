@@ -12,6 +12,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -25,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Int;
 
+import java.io.FileWriter;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -529,12 +531,12 @@ public class onlinePartitioningForSsj {
 //        DataStream<Tuple3<Long, Integer, Double[]>> embeddedData = data.map(new WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
 
         DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.
-                flatMap(new PhysicalPartitioner(0.3, SimilarityJoinsUtil.RandomCentroids(10, 2), (env.getMaxParallelism()/env.getParallelism())+1));
+                flatMap(new PhysicalPartitioner(0.1, SimilarityJoinsUtil.RandomCentroids(10, 2), (env.getMaxParallelism()/env.getParallelism())+1));
 
 
         DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> lpData = ppData
                 .keyBy(t -> t.f0)
-                .flatMap(new AdaptivePartitioner(0.3, (env.getMaxParallelism()/env.getParallelism())+1, LOG));
+                .flatMap(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG));
 
 
 
@@ -546,14 +548,11 @@ public class onlinePartitioningForSsj {
                 .keyBy(new LogicalKeySelector())
                 .window(GlobalWindows.create())
                 .trigger(new CustomOnElementTrigger())
-                .process(new SimilarityJoin(0.3, LOG))
+                .process(new SimilarityJoin(0.1, LOG))
                 .process(new CustomFiltering(sideStats));
 
         selfJoinedStream.print();
 
-        LOG.info(env.getExecutionPlan());
-
-        env.execute();
 
 //*********************************************      STATISTICS SECTION      *******************************************
 
@@ -568,7 +567,14 @@ public class onlinePartitioningForSsj {
                 .keyBy(t -> t.f0)
                 .sum(1)
                 .map(new OverallPartitionSizeList())
-                .writeAsText(pwd + "/src/main/outputs/physicalPartitionSizes.txt", FileSystem.WriteMode.OVERWRITE);
+                .addSink(new SinkFunction<List<Tuple2<String, String>>>() {
+                    @Override
+                    public void invoke(List<Tuple2<String, String>> value, Context context) throws Exception {
+                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/physicalPartitionSizes.txt");
+                        myWriter.write(value.toString());
+                        myWriter.close();
+                    }
+                });
 
 
 
@@ -593,33 +599,52 @@ public class onlinePartitioningForSsj {
                 .keyBy(new PhyStatsRtypeKeySelector())
                 .sum(2)
                 .map(new PPRecTypeList())
-                .writeAsText(pwd + "/src/main/outputs/ppRecordTypes.txt", FileSystem.WriteMode.OVERWRITE);
+                .addSink(new SinkFunction<List<Tuple3<String, String, String>>>() {
+                    @Override
+                    public void invoke(List<Tuple3<String, String, String>> value, Context context) throws Exception {
+                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/ppRecordTypes.txt");
+                        myWriter.write(value.toString());
+                        myWriter.close();
+                    }
+                });
 
 
 
         //<-------  Capture the number of true and false comparisons in each logical partition --------->
-        DataStream<List<Tuple4<String,String,String,String>>> logicalStatistics = selfJoinedStream.getSideOutput(sideStats)
+        selfJoinedStream.getSideOutput(sideStats)
                 .map(t -> new Tuple4<>(t.f1.f2, t.f1.f0, t.f0, 1L))
                 .returns(TypeInformation.of(new TypeHint<Tuple4<Integer, Integer, Boolean, Long>>() {
                 }))
                 .keyBy(new StatsKeySelector())
                 .sum(3)
-                .map(new LPMeasurePerformance());
-
-        logicalStatistics.writeAsText(pwd+"/src/main/outputs/comparisonsByLogicalPart.txt", FileSystem.WriteMode.OVERWRITE);
+                .map(new LPMeasurePerformance())
+                .addSink(new SinkFunction<List<Tuple4<String, String, String, String>>>() {
+                    @Override
+                    public void invoke(List<Tuple4<String, String, String, String>> value, Context context) throws Exception {
+                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/comparisonsByLogicalPart.txt");
+                        myWriter.write(value.toString());
+                        myWriter.close();
+                    }
+                });
 
 
 
         //<-------  Capture the number of true and false comparisons in each physical partition --------->
-        DataStream<List<Tuple3<String,String,String>>> physicalStatistics = selfJoinedStream.getSideOutput(sideStats)
+        selfJoinedStream.getSideOutput(sideStats)
                 .map(t -> new Tuple3<>(t.f1.f2, t.f0, 1L))
                 .returns(TypeInformation.of(new TypeHint<Tuple3<Integer, Boolean, Long>>() {
                 }))
                 .keyBy(new PhyStatsKeySelector())
                 .sum(2)
-                .map(new PPMeasurePerformance());
-
-        physicalStatistics.writeAsText(pwd+"/src/main/outputs/comparisonsByPhysicalPart.txt", FileSystem.WriteMode.OVERWRITE);
+                .map(new PPMeasurePerformance())
+                .addSink(new SinkFunction<List<Tuple3<String, String, String>>>() {
+                    @Override
+                    public void invoke(List<Tuple3<String, String, String>> value, Context context) throws Exception {
+                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/comparisonsByPhysicalPart.txt");
+                        myWriter.write(value.toString());
+                        myWriter.close();
+                    }
+                });
 
 
 
@@ -629,7 +654,14 @@ public class onlinePartitioningForSsj {
                 .keyBy(new BetweenPhyPartKeySelector())
                 .sum(3)
                 .map(new BetweenPhyPartMatchesList())
-                .writeAsText(pwd+"/src/main/outputs/matchesBetweenPhysicalPart.txt", FileSystem.WriteMode.OVERWRITE);
+                .addSink(new SinkFunction<List<Tuple4<String, String, String, String>>>() {
+                    @Override
+                    public void invoke(List<Tuple4<String, String, String, String>> value, Context context) throws Exception {
+                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/matchesBetweenPhysicalPart.txt");
+                        myWriter.write(value.toString());
+                        myWriter.close();
+                    }
+                });
 
 
         //<------- Capture the number of true and false comparisons between logical partitions --------->
@@ -638,7 +670,15 @@ public class onlinePartitioningForSsj {
                 .keyBy(new BetweenLogicalPartKeySelector())
                 .sum(4)
                 .map(new BetweenLogicalPartMatchesList())
-                .writeAsText(pwd+"/src/main/outputs/matchesBetweenLogicalPart.txt", FileSystem.WriteMode.OVERWRITE);
+                .addSink(new SinkFunction<List<Tuple5<String, String, String, String, String>>>() {
+                    @Override
+                    public void invoke(List<Tuple5<String, String, String, String, String>> value, Context context) throws Exception {
+                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/matchesBetweenLogicalPart.txt");
+                        myWriter.write(value.toString());
+                        myWriter.close();
+                    }
+                });
+
 
 
         //<-------- Number of logical partitions within each physical ---------->
@@ -646,9 +686,18 @@ public class onlinePartitioningForSsj {
                 .map(t -> new Tuple2<Integer,Integer>(t.f2, t.f0))
                 .returns(TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {}))
                 .map(new NumOfLogicalPartMapper())
-                .writeAsText(pwd+"/src/main/outputs/NumOfLogicalPartPerPhysical.txt", FileSystem.WriteMode.OVERWRITE);
+                .addSink(new SinkFunction<List<Tuple2<Integer, Integer>>>() {
+                    @Override
+                    public void invoke(List<Tuple2<Integer, Integer>> value, Context context) throws Exception {
+                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/NumOfLogicalPartPerPhysical.txt");
+                        myWriter.write(value.toString());
+                        myWriter.close();
+                    }
+                });
 
+        LOG.info(env.getExecutionPlan());
 
+        env.execute();
 
 
     }

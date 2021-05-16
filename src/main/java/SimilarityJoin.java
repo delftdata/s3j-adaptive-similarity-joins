@@ -21,6 +21,7 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,
 
     public SimilarityJoin(Double dist_thresh, Logger LOG)throws Exception{
         this.dist_thresh = dist_thresh;
+        this.LOG = LOG;
     }
 
 
