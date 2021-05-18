@@ -35,19 +35,19 @@ public class PipelineToTest {
 
         DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
 
-        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new PhysicalPartitioner(0.1, SimilarityJoinsUtil.RandomCentroids(10, 2),(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new PhysicalPartitioner(0.05, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
 
         ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
 
         DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> partitionedData = ppData
                 .keyBy(t-> t.f0)
-                .flatMap(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG));
+                .flatMap(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG));
 
         partitionedData
                 .keyBy(new onlinePartitioningForSsj.LogicalKeySelector())
                 .window(GlobalWindows.create())
                 .trigger(new onlinePartitioningForSsj.CustomOnElementTrigger())
-                .process(new SimilarityJoin(0.1, LOG))
+                .process(new SimilarityJoin(0.05, LOG))
                 .process(new onlinePartitioningForSsj.CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());

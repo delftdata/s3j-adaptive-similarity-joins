@@ -51,8 +51,10 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,
                             (newTuple.f1.equals("outlier") && t.f1.equals("inner")) ||
                             (newTuple.f1.equals("inner") && t.f1.equals("outlier")) ||
                             (newTuple.f1.equals("inner") && t.f1.equals("outer")) ||
-                            (newTuple.f1.equals("outlier") && t.f1.equals("outer") && !t.f7.equals(newTuple.f7)) ||
-                            (newTuple.f1.equals("outer") && t.f1.equals("outlier") && !t.f7.equals(newTuple.f7)) ||
+                            (newTuple.f1.equals("outlier") && t.f1.equals("outer")) ||
+                            (newTuple.f1.equals("outer") && t.f1.equals("outlier")) ||
+//                            (newTuple.f1.equals("outlier") && t.f1.equals("outer") && !t.f7.equals(newTuple.f7)  && (newTuple.f0 < t.f5 || t.f3.equals("pOuter"))) ||
+//                            (newTuple.f1.equals("outer") && t.f1.equals("outlier") && !t.f7.equals(newTuple.f7) && (newTuple.f5 > t.f0 || newTuple.f3.equals("pOuter"))) ||
                             (newTuple.f1.equals("ind_outer") && t.f1.equals("inner")) ||
                             (newTuple.f1.equals("inner") && t.f1.equals("ind_outer"))
             );

@@ -97,10 +97,10 @@ public class AdaptivePartitioner extends
                         inner = centroid.getKey();
                     }
                 }
-                    if(t.f4.equals(984) || t.f4.equals(21)){
-                        System.out.println(t.f4);
-                        System.out.println(distances.toString());
-                    }
+//                    if(t.f4.equals(984) || t.f4.equals(21)){
+//                        System.out.println(t.f4);
+//                        System.out.println(distances.toString());
+//                    }
                 try {
                     if (distances.peek().f1 > dist_thresh) {
                         inner = part_num + 1;
@@ -117,16 +117,16 @@ public class AdaptivePartitioner extends
                         }
                         for (Tuple7<Integer, Integer, String, Integer, Long, Integer, Double[]> out : outliers.get()) {
                             Double[] temp = out.f6;
-                            if(out.f4 == 21){
-                                System.out.println(1);
-                                System.out.println(SimilarityJoinsUtil.AngularDistance(emb, temp));
-                            }
-                            if (SimilarityJoinsUtil.AngularDistance(emb, temp) < 1.5 * dist_thresh) {
-                                if (SimilarityJoinsUtil.AngularDistance(emb, partitions.get(out.f0).f2) > 1 * dist_thresh) {
-                                    collector.collect(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6));
-                                    LOG.info(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6).toString());
-                                }
-                            }
+//                            if(out.f4 == 21){
+//                                System.out.println(1);
+//                                System.out.println(SimilarityJoinsUtil.AngularDistance(emb, temp));
+//                            }
+//                            if (SimilarityJoinsUtil.AngularDistance(emb, temp) < 1.5 * dist_thresh) {
+//                                if (SimilarityJoinsUtil.AngularDistance(emb, partitions.get(out.f0).f2) > 1 * dist_thresh) {
+//                                    collector.collect(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6));
+//                                    LOG.info(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6).toString());
+//                                }
+//                            }
                         }
                     } else {
                         if (distances.peek().f1 > 0.5 * dist_thresh) {
@@ -145,28 +145,22 @@ public class AdaptivePartitioner extends
                         Tuple2<Integer, Double> temp = distances.poll();
                         if (temp.f0 == inner) {
                             continue;
-                        } else if ((temp.f1 > 2 * dist_thresh) || (!isOutlier && (temp.f1 > 1.5 * dist_thresh))) {
+                        } else if ((temp.f1 > 2 * dist_thresh)) {
                             break;
                         } else {
                             if (inner > temp.f0) {
                                 collector.collect(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
                                 LOG.info(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
                             }
-                            if (isOutlier && (inner < temp.f0)) {
-                                Double[] tempEmb = partitions.get(temp.f0).f2;
-                                Double[] innerEmb = partitions.get(inner).f2;
-
-                                if(t.f4.equals(21)){
-                                    System.out.println(temp.f0);
-                                    System.out.println(SimilarityJoinsUtil.AngularDistance(tempEmb, innerEmb));
-                                }
-
-                                if (SimilarityJoinsUtil.AngularDistance(tempEmb, innerEmb) > 1 * dist_thresh) {
-                                    collector.collect(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
-                                    LOG.info(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
-                                }
-
-                            }
+//                            if (isOutlier && (inner < temp.f0)) {
+//                                Double[] tempEmb = partitions.get(temp.f0).f2;
+//                                Double[] innerEmb = partitions.get(inner).f2;
+//
+//                                if (SimilarityJoinsUtil.AngularDistance(tempEmb, innerEmb) > 1 * dist_thresh) {
+//                                    collector.collect(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
+//                                    LOG.info(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
+//                                }
+//                            }
                         }
                     }
                 } catch (Exception e) {

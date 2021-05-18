@@ -36,9 +36,12 @@ public class GlobalWindowDuplicateTest {
         Set<Tuple2<Integer,Integer>> set = new HashSet<Tuple2<Integer,Integer>>();
         // Set#add returns false if the set does not change, which
         // indicates that a duplicate element has been added.
-        for (Tuple2<Integer,Integer> each: all) if (!set.add(each)){
-            System.out.println(each.toString());
-            result = true;
+        for (Tuple2<Integer,Integer> each: all) {
+//            System.out.println(each);
+            if (!set.add(each)){
+                System.out.println("duplicate: " + each.toString());
+                result = true;
+            }
         }
         return result;
     }

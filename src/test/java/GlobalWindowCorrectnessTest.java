@@ -41,15 +41,15 @@ public class GlobalWindowCorrectnessTest {
 
 //        System.out.println(CollectSink.values.toString());
 //        System.out.println(getGroundTruth("wordStreamGroundTruth.txt"));
-        ArrayList<Tuple2<Integer,Integer>> gd = getGroundTruth("1K_2D_Array_StreamGroundTruth.txt");
+        ArrayList<Tuple2<Integer,Integer>> gd = getGroundTruth("1K_2D_Array_StreamGroundTruth0_05.txt");
         for(Tuple2<Integer,Integer> v : gd){
             boolean cont = results.contains(v);
             if(!cont) {
                 System.out.format("(%d,%d): %b\n", v.f0, v.f1, cont);
             }
         }
-        assertTrue(results.containsAll(getGroundTruth("1K_2D_Array_StreamGroundTruth.txt")));
-        assertTrue(getGroundTruth("1K_2D_Array_StreamGroundTruth.txt").containsAll(results));
+        assertTrue(results.containsAll(getGroundTruth("1K_2D_Array_StreamGroundTruth0_05.txt")));
+        assertTrue(getGroundTruth("1K_2D_Array_StreamGroundTruth0_05.txt").containsAll(results));
 
     }
 

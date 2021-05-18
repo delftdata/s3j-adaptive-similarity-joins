@@ -211,16 +211,16 @@ public class SimilarityJoinsUtil {
                     .forEach(records::addFirst);
         }
         try {
-            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/"+streamFileName+"GroundTruth.txt");
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/"+streamFileName+"GroundTruth"+threshold.toString().replace(".", "_")+".txt");
             while (!records.isEmpty()) {
                 Tuple3<Long,Integer,Double[]> toCompare = records.poll();
                 Double[] comEmb = toCompare.f2;
                 for(Tuple3<Long,Integer,Double[]> r : records){
                     Double[] emb = r.f2;
                     Double dist = AngularDistance(comEmb, emb);
-                    if(toCompare.f1 == 992 && r.f1==244){
-                        System.out.println(dist);
-                    }
+//                    if(toCompare.f1 == 992 && r.f1==244){
+//                        System.out.println(dist);
+//                    }
                     if(dist < threshold){
 //                        System.out.format("%d, %d, %f\n", toCompare.f1, r.f1, dist);
                         String toWrite = new Tuple2<Integer, Integer>(toCompare.f1, r.f1).toString().replaceAll("\\(","").replaceAll("\\)","") + "\n";
@@ -249,12 +249,26 @@ public class SimilarityJoinsUtil {
     public static void main(String[] args) throws Exception{
 
 //        create2DArrayStream(1000);
-        create2DGroundTruth("1K_2D_Array_Stream", 0.1);
+        create2DGroundTruth("1K_2D_Array_Stream", 0.05);
 //        HashMap<Integer, Double[]> cent = SimilarityJoinsUtil.RandomCentroids(10, 2);
 //        for(Integer k : cent.keySet()){
 //            System.out.println(Arrays.toString(cent.get(k)));
 //        }
 //        System.out.println(CosineDistance(cent.get(3), cent.get(6)));
+//        Double[] vectorA;
+//        Double[] vectorB;
+//
+//        vectorA = new Double[]{0.0, 1.0};
+//        vectorB = new Double[]{0.52212, 0.85287};
+//        System.out.println(AngularDistance(vectorA, vectorB));
+//
+//        vectorA = new Double[]{0.0, 1.0};
+//        vectorB = new Double[]{0.44407, 0.89599};
+//        System.out.println(AngularDistance(vectorA, vectorB));
+//
+//        vectorA = new Double[]{0.44407, 0.89599};
+//        vectorB = new Double[]{0.52212, 0.85287};
+//        System.out.println(AngularDistance(vectorA, vectorB));
     }
 
 
