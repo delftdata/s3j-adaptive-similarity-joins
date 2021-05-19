@@ -57,7 +57,8 @@ public class SimilarityJoinsUtil {
             System.out.println(Arrays.toString(vectorB));
             throw e;
         }
-        return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+        double csim = dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+        return Math.min(csim, 1.0);
     }
 
     public static Double CosineDistance(Double[] vectorA, Double[] vectorB){

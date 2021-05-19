@@ -559,6 +559,12 @@ public class onlinePartitioningForSsj {
         env.setParallelism(1);
 
 
+        //<-------  Records labeled with partition ids ---------->
+        ppData.writeAsText(pwd+"/src/main/outputs/PhysicalPartitioning.txt", FileSystem.WriteMode.OVERWRITE);
+
+
+
+
         //<-------  Capture the size of physical partitions --------->
         ppData
                 .map(t -> new Tuple2<>(t.f0, 1L))

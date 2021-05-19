@@ -37,7 +37,7 @@ public class PipelineToTest {
 
         DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new PhysicalPartitioner(0.05, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
 
-        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
+//        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
 
         DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> partitionedData = ppData
                 .keyBy(t-> t.f0)

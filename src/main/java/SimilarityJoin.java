@@ -43,7 +43,7 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,
 
         for (Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]> t : tuplesList ) {
 
-            LOG.info(newTuple.toString()+", "+t.toString());
+//            LOG.info(newTuple.toString()+", "+t.toString());
 
             boolean exp = (
                     (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
