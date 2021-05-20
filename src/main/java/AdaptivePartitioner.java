@@ -5,30 +5,34 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.PriorityQueue;
 
+import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AdaptivePartitioner extends
-        RichFlatMapFunction<Tuple6<Integer,String,Integer,Long,Integer,Double[]>,
-                Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> {
+        ProcessFunction<Tuple6<Integer,String,Integer,Long,Integer,Double[]>,
+                        Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> {
 
     Double dist_thresh;
     int keyRange;
     private Logger LOG;
+    OutputTag<Tuple3<Long, Integer, Integer>> sideLP;
     HashMap<Integer, Tuple3<Long, Integer, Double[]>> partitions = new HashMap<>();
     ListState<Tuple7<Integer,Integer,String,Integer,Long,Integer,Double[]>> outliers;
     ListState<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> phyOuters;
 
-    public AdaptivePartitioner(Double dist_thresh, int keyRange, Logger LOG) throws Exception{
+    public AdaptivePartitioner(Double dist_thresh, int keyRange, Logger LOG, OutputTag<Tuple3<Long, Integer, Integer>> sideLP) throws Exception{
         this.dist_thresh = dist_thresh;
         this.keyRange = keyRange;
         this.LOG = LOG;
+        this.sideLP = sideLP;
     }
 
     @Override
@@ -50,7 +54,9 @@ public class AdaptivePartitioner extends
 
 
     @Override
-    public void flatMap(Tuple6<Integer, String, Integer, Long, Integer, Double[]> t, Collector<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> collector)
+    public void processElement(Tuple6<Integer, String, Integer, Long, Integer, Double[]> t,
+                               Context context,
+                               Collector<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> collector)
             throws Exception {
 
         Double[] emb = t.f5;
@@ -115,8 +121,8 @@ public class AdaptivePartitioner extends
 //                                LOG.info(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
                             }
                         }
-                        for (Tuple7<Integer, Integer, String, Integer, Long, Integer, Double[]> out : outliers.get()) {
-                            Double[] temp = out.f6;
+//                        for (Tuple7<Integer, Integer, String, Integer, Long, Integer, Double[]> out : outliers.get()) {
+//                            Double[] temp = out.f6;
 //                            if(out.f4 == 21){
 //                                System.out.println(1);
 //                                System.out.println(SimilarityJoinsUtil.AngularDistance(emb, temp));
@@ -127,7 +133,7 @@ public class AdaptivePartitioner extends
 //                                    LOG.info(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6).toString());
 //                                }
 //                            }
-                        }
+//                        }
                     } else {
                         if (distances.peek().f1 > 0.5 * dist_thresh) {
                             inner = distances.peek().f0;
@@ -169,5 +175,6 @@ public class AdaptivePartitioner extends
                 }
             }
         }
+        context.output(sideLP, new Tuple3<Long, Integer, Integer>(t.f3, t.f0, partitions.size()));
     }
 }

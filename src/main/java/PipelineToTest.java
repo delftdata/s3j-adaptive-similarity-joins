@@ -33,6 +33,9 @@ public class PipelineToTest {
         final OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
                 new OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
 
+        final OutputTag<Tuple3<Long, Integer, Integer>> sideLP =
+                new OutputTag<Tuple3<Long, Integer, Integer>>("logicalPartitions"){};
+
         DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
 
         DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new PhysicalPartitioner(0.05, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
@@ -41,7 +44,7 @@ public class PipelineToTest {
 
         DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> partitionedData = ppData
                 .keyBy(t-> t.f0)
-                .flatMap(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG));
+                .process(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP));
 
         partitionedData
                 .keyBy(new onlinePartitioningForSsj.LogicalKeySelector())

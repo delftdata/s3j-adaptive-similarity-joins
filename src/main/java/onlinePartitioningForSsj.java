@@ -1,3 +1,4 @@
+import org.apache.commons.math3.analysis.function.Sin;
 import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -10,6 +11,7 @@ import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -20,6 +22,7 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
@@ -515,6 +518,36 @@ public class onlinePartitioningForSsj {
         }
     }
 
+    public static class windowedNumOfLogicalPartMapper implements MapFunction<Tuple3<Long,Integer,Integer>, List<Tuple3<Long,Integer,Integer>>>{
+
+        private HashMap<Integer, Tuple2<Long,Integer>> stats = new HashMap<>();
+
+        @Override
+        public List<Tuple3<Long,Integer,Integer>> map(Tuple3<Long,Integer, Integer> t) throws Exception {
+            if(!stats.containsKey(t.f1)){
+                stats.put(t.f1, new Tuple2<Long, Integer>(0L,0));
+            }
+
+            Tuple2<Long,Integer> sizePP = stats.get(t.f1);
+            if(sizePP.f1 <= t.f2){
+                stats.put(t.f1, new Tuple2<>(t.f0, t.f2));
+            }
+            else{
+                System.out.println(t);
+            }
+
+
+            List<Tuple3<Long, Integer, Integer>> out = new ArrayList<>();
+            for(Integer i : stats.keySet()){
+                out.add(new Tuple3<Long, Integer, Integer>(
+                        stats.get(i).f0,
+                        i,
+                        stats.get(i).f1
+                ));
+            }
+            return out;
+        }
+    }
 
 
     public static void main(String[] args) throws Exception{
@@ -526,19 +559,20 @@ public class onlinePartitioningForSsj {
 
         LOG.info("Enter main.");
 
+        final OutputTag<Tuple3<Long, Integer, Integer>> sideLP =
+                new OutputTag<Tuple3<Long, Integer, Integer>>("logicalPartitions"){};
+
         DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream("1K_2D_Array_Stream.txt");
-        data.print();
+//        data.print();
 //        DataStream<Tuple3<Long, Integer, Double[]>> embeddedData = data.map(new WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
 
         DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.
                 flatMap(new PhysicalPartitioner(0.1, SimilarityJoinsUtil.RandomCentroids(10, 2), (env.getMaxParallelism()/env.getParallelism())+1));
 
 
-        DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> lpData = ppData
+        SingleOutputStreamOperator<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> lpData = ppData
                 .keyBy(t -> t.f0)
-                .flatMap(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG));
-
-
+                .process(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP));
 
         final OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
                 new OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
@@ -551,7 +585,7 @@ public class onlinePartitioningForSsj {
                 .process(new SimilarityJoin(0.1, LOG))
                 .process(new CustomFiltering(sideStats));
 
-        selfJoinedStream.print();
+//        selfJoinedStream.print();
 
 
 //*********************************************      STATISTICS SECTION      *******************************************
@@ -585,15 +619,16 @@ public class onlinePartitioningForSsj {
 
 
         //<-------  Capture the size of physical partitions per window --------->
-        ppData
+        SingleOutputStreamOperator<List<Tuple3<String, String, String>>> incRatePerWindow = ppData
                 .map(t -> new Tuple3<>(t.f3, t.f0, 1L))
                 .returns(TypeInformation.of((new TypeHint<Tuple3<Long, Integer, Long>>() {
                 })))
                 .keyBy(t -> t.f1)
                 .window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
                 .sum(2)
-                .map(new WindowedOverallPartitionSizeList())
-                .writeAsText(pwd + "/src/main/outputs/windowedPhysicalPartitionSizes.txt", FileSystem.WriteMode.OVERWRITE);
+                .map(new WindowedOverallPartitionSizeList());
+
+        incRatePerWindow.writeAsText(pwd + "/src/main/outputs/windowedPhysicalPartitionSizes.txt", FileSystem.WriteMode.OVERWRITE);
 
 
 
@@ -687,7 +722,7 @@ public class onlinePartitioningForSsj {
 
 
 
-        //<-------- Number of logical partitions within each physical ---------->
+        //<-------- Number of logical partitions within each physical per window ---------->
         lpData
                 .map(t -> new Tuple2<Integer,Integer>(t.f2, t.f0))
                 .returns(TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {}))
@@ -700,6 +735,18 @@ public class onlinePartitioningForSsj {
                         myWriter.close();
                     }
                 });
+
+        OutputTag<Tuple3<Long, Integer, Integer>> lateData = new OutputTag<Tuple3<Long, Integer, Integer>>("late"){};
+        SingleOutputStreamOperator<List<Tuple3<Long, Integer, Integer>>> wd = lpData.getSideOutput(sideLP)
+                .keyBy(t -> t.f1)
+                .window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+                .sideOutputLateData(lateData)
+                .max(1)
+                .map(new windowedNumOfLogicalPartMapper());
+
+        wd.writeAsText(pwd+"/src/main/outputs/windowedNumOfLogicalPartPerPhysical.txt", FileSystem.WriteMode.OVERWRITE);
+
+        wd.getSideOutput(lateData).print();
 
         LOG.info(env.getExecutionPlan());
 
