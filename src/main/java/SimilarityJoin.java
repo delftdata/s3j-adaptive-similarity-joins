@@ -8,6 +8,7 @@ import org.apache.flink.util.Collector;
 import java.util.Iterator;
 import java.util.LinkedList;
 
+import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 
 
@@ -18,10 +19,12 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,
 
     Double dist_thresh;
     private Logger LOG;
+    OutputTag<Tuple3<Long, Integer, Integer>> sideJoins;
 
-    public SimilarityJoin(Double dist_thresh, Logger LOG)throws Exception{
+    public SimilarityJoin(Double dist_thresh, Logger LOG, OutputTag<Tuple3<Long, Integer, Integer>> sideJoins)throws Exception{
         this.dist_thresh = dist_thresh;
         this.LOG = LOG;
+        this.sideJoins = sideJoins;
     }
 
 
@@ -44,7 +47,6 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,
         for (Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]> t : tuplesList ) {
 
 //            LOG.info(newTuple.toString()+", "+t.toString());
-
             boolean exp = (
                     (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
                             (newTuple.f1.equals("outlier") && t.f1.equals("outlier")) ||
@@ -60,6 +62,7 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,
             );
 
             if (exp){
+                ctx.output(sideJoins, new Tuple3<>(newTuple.f6, newTuple.f2, newTuple.f0));
                 Double[] tEmbed = t.f8;
                 if(newTuple.f7 > t.f7) {
                     collector.collect(

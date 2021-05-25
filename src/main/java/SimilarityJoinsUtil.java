@@ -126,7 +126,7 @@ public class SimilarityJoinsUtil {
 
     public static void create2DArrayStream(int N) throws Exception{
         try {
-            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/100_2D_Array_Stream.txt");
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/1K_2D_Array_Stream_v2.txt");
             Random rand = new Random(1000);
             int itemPerStamp = 20;
             int timestamp = 0;
@@ -134,7 +134,7 @@ public class SimilarityJoinsUtil {
             for(int i = 0; i < N; i++){
                 if(itemPerStamp == 0){
                     itemPerStamp = 20 + rand.nextInt(80);
-                    timestamp++;
+                    timestamp += 1000;
                 }
 
                 Double[] nextStreamItem = new Double[2];
@@ -249,8 +249,8 @@ public class SimilarityJoinsUtil {
 
     public static void main(String[] args) throws Exception{
 
-//        create2DArrayStream(1000);
-        create2DGroundTruth("1K_2D_Array_Stream", 0.05);
+        create2DArrayStream(1000);
+        create2DGroundTruth("1K_2D_Array_Stream_v2", 0.05);
 //        HashMap<Integer, Double[]> cent = SimilarityJoinsUtil.RandomCentroids(10, 2);
 //        for(Integer k : cent.keySet()){
 //            System.out.println(Arrays.toString(cent.get(k)));

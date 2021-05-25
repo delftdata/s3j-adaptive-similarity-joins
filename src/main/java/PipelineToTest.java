@@ -30,13 +30,18 @@ public class PipelineToTest {
 
         CollectSink.values.clear();
 
-        final OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
-                new OutputTag<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
+        final OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
+                new OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
 
         final OutputTag<Tuple3<Long, Integer, Integer>> sideLP =
                 new OutputTag<Tuple3<Long, Integer, Integer>>("logicalPartitions"){};
 
+        OutputTag<Tuple3<Long, Integer, Integer>> sideJoins =
+                new OutputTag<Tuple3<Long, Integer, Integer>>("sideJoins"){};
+
+        env.setParallelism(1);
         DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
+        env.setParallelism(givenParallelism);
 
         DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new PhysicalPartitioner(0.05, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
 
@@ -50,7 +55,7 @@ public class PipelineToTest {
                 .keyBy(new onlinePartitioningForSsj.LogicalKeySelector())
                 .window(GlobalWindows.create())
                 .trigger(new onlinePartitioningForSsj.CustomOnElementTrigger())
-                .process(new SimilarityJoin(0.05, LOG))
+                .process(new SimilarityJoin(0.05, LOG, sideJoins))
                 .process(new onlinePartitioningForSsj.CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());
