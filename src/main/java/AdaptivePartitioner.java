@@ -1,10 +1,13 @@
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 
@@ -24,22 +27,20 @@ public class AdaptivePartitioner extends
     int keyRange;
     private Logger LOG;
     OutputTag<Tuple3<Long, Integer, Integer>> sideLP;
-    OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids;
-    HashMap<Integer, Tuple3<Long, Integer, Double[]>> partitions = new HashMap<>();
+//    OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids;
     ListState<Tuple7<Integer,Integer,String,Integer,Long,Integer,Double[]>> outliers;
     ListState<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> phyOuters;
+    MapState<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> mappingGroupsToNodes;
 
     public AdaptivePartitioner(Double dist_thresh,
                                int keyRange,
                                Logger LOG,
-                               OutputTag<Tuple3<Long, Integer, Integer>> sideLP,
-                               OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids
+                               OutputTag<Tuple3<Long, Integer, Integer>> sideLP
     ) throws Exception{
         this.dist_thresh = dist_thresh;
         this.keyRange = keyRange;
         this.LOG = LOG;
         this.sideLP = sideLP;
-        this.sideLCentroids = sideLCentroids;
     }
 
     @Override
@@ -57,6 +58,14 @@ public class AdaptivePartitioner extends
                         TypeInformation.of(new TypeHint<Tuple6<Integer, String, Integer, Long, Integer, Double[]>>() {})
                 );
         phyOuters = getRuntimeContext().getListState(phyOutersDesc);
+
+        MapStateDescriptor<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> mappingGroupsToNodesDesc =
+                new MapStateDescriptor<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>>(
+                        "mapping",
+                        TypeInformation.of(new TypeHint<Integer>() {}),
+                        TypeInformation.of(new TypeHint<Tuple2<Tuple3<Long,Integer,Double[]>, Integer>>() {})
+                );
+        mappingGroupsToNodes = getRuntimeContext().getMapState(mappingGroupsToNodesDesc);
     }
 
 
@@ -67,7 +76,7 @@ public class AdaptivePartitioner extends
             throws Exception {
 
         Double[] emb = t.f5;
-        int part_num = partitions.size();
+        int part_num = Iterables.size(mappingGroupsToNodes.keys());
 
         PriorityQueue<Tuple2<Integer, Double>> distances =
                 new PriorityQueue<Tuple2<Integer, Double>>(new CustomComparator());
@@ -75,8 +84,8 @@ public class AdaptivePartitioner extends
         boolean isOutlier = false;
 
         if (t.f1.equals("pOuter")) {
-            for (Map.Entry<Integer, Tuple3<Long, Integer, Double[]>> centroid : partitions.entrySet()) {
-                Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f2);
+            for (Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>,Integer>> centroid : mappingGroupsToNodes.entries()) {
+                Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2);
                 distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                 if (dist <= 2 * dist_thresh) {
@@ -88,7 +97,7 @@ public class AdaptivePartitioner extends
         }
         else if (t.f1.equals("pInner")) {
             if (part_num == 0) {
-                partitions.put(1, new Tuple3<Long, Integer, Double[]>(t.f3, t.f4, emb));
+                mappingGroupsToNodes.put(1, new Tuple2<>(new Tuple3<Long, Integer, Double[]>(t.f3, t.f4, emb), t.f0));
                 collector.collect(new Tuple9<>(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5));
 //                LOG.info(new Tuple9<>(1, "inner", t.f0, t.f1, t.f2, 1,t.f3, t.f4, t.f5).toString());
                 for(Tuple6<Integer,String,Integer,Long,Integer,Double[]> po : phyOuters.get()){
@@ -100,8 +109,8 @@ public class AdaptivePartitioner extends
                 }
             } else {
                 int inner;
-                for (Map.Entry<Integer, Tuple3<Long, Integer, Double[]>> centroid : partitions.entrySet()) {
-                    Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f2);
+                for (Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> centroid : mappingGroupsToNodes.entries()) {
+                    Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2);
                     distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                     if (dist <= 0.5 * dist_thresh) {
@@ -110,14 +119,11 @@ public class AdaptivePartitioner extends
                         inner = centroid.getKey();
                     }
                 }
-//                    if(t.f4.equals(984) || t.f4.equals(21)){
-//                        System.out.println(t.f4);
-//                        System.out.println(distances.toString());
-//                    }
+
                 try {
                     if (distances.peek().f1 > dist_thresh) {
                         inner = part_num + 1;
-                        partitions.put(part_num + 1, new Tuple3<>(t.f3, t.f4, emb));
+                        mappingGroupsToNodes.put(part_num + 1, new Tuple2<>(new Tuple3<>(t.f3, t.f4, emb), t.f0));
                         collector.collect(new Tuple9<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5));
 //                        LOG.info(new Tuple9<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5).toString());
                         for(Tuple6<Integer,String,Integer,Long,Integer,Double[]> po : phyOuters.get()){
@@ -128,19 +134,7 @@ public class AdaptivePartitioner extends
 //                                LOG.info(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
                             }
                         }
-//                        for (Tuple7<Integer, Integer, String, Integer, Long, Integer, Double[]> out : outliers.get()) {
-//                            Double[] temp = out.f6;
-//                            if(out.f4 == 21){
-//                                System.out.println(1);
-//                                System.out.println(SimilarityJoinsUtil.AngularDistance(emb, temp));
-//                            }
-//                            if (SimilarityJoinsUtil.AngularDistance(emb, temp) < 1.5 * dist_thresh) {
-//                                if (SimilarityJoinsUtil.AngularDistance(emb, partitions.get(out.f0).f2) > 1 * dist_thresh) {
-//                                    collector.collect(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6));
-//                                    LOG.info(new Tuple9<>(part_num + 1, "ind_outer", out.f1, out.f2, out.f3, out.f0, out.f4, out.f5, out.f6).toString());
-//                                }
-//                            }
-//                        }
+
                     } else {
                         if (distances.peek().f1 > 0.5 * dist_thresh) {
                             inner = distances.peek().f0;
@@ -165,15 +159,7 @@ public class AdaptivePartitioner extends
                                 collector.collect(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
 //                                LOG.info(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
                             }
-//                            if (isOutlier && (inner < temp.f0)) {
-//                                Double[] tempEmb = partitions.get(temp.f0).f2;
-//                                Double[] innerEmb = partitions.get(inner).f2;
-//
-//                                if (SimilarityJoinsUtil.AngularDistance(tempEmb, innerEmb) > 1 * dist_thresh) {
-//                                    collector.collect(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
-//                                    LOG.info(new Tuple9<>(temp.f0, "ind_outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
-//                                }
-//                            }
+
                         }
                     }
                 } catch (Exception e) {
@@ -182,7 +168,8 @@ public class AdaptivePartitioner extends
                 }
             }
         }
-        context.output(sideLP, new Tuple3<Long, Integer, Integer>(t.f3, t.f0, partitions.size()));
-        context.output(sideLCentroids, new Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>(t.f0, partitions));
+
+        context.output(sideLP, new Tuple3<Long, Integer, Integer>(t.f3, t.f0, Iterables.size(mappingGroupsToNodes.keys())));
+//        context.output(sideLCentroids, new Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>(t.f0, partitions));
     }
 }
