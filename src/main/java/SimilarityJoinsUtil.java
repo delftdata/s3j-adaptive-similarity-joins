@@ -249,26 +249,26 @@ public class SimilarityJoinsUtil {
 
     public static void main(String[] args) throws Exception{
 
-        create2DArrayStream(1000);
-        create2DGroundTruth("1K_2D_Array_Stream_v2", 0.05);
+//        create2DArrayStream(1000);
+//        create2DGroundTruth("1K_2D_Array_Stream_v2", 0.05);
 //        HashMap<Integer, Double[]> cent = SimilarityJoinsUtil.RandomCentroids(10, 2);
 //        for(Integer k : cent.keySet()){
 //            System.out.println(Arrays.toString(cent.get(k)));
 //        }
 //        System.out.println(CosineDistance(cent.get(3), cent.get(6)));
-//        Double[] vectorA;
-//        Double[] vectorB;
+        Double[] vectorA;
+        Double[] vectorB;
 //
-//        vectorA = new Double[]{0.0, 1.0};
-//        vectorB = new Double[]{0.52212, 0.85287};
-//        System.out.println(AngularDistance(vectorA, vectorB));
+        vectorA = new Double[]{0.0, 1.0};
+        vectorB = new Double[]{0.727, 1.0};
+        System.out.println(AngularDistance(vectorA, vectorB));
 //
 //        vectorA = new Double[]{0.0, 1.0};
 //        vectorB = new Double[]{0.44407, 0.89599};
 //        System.out.println(AngularDistance(vectorA, vectorB));
 //
-//        vectorA = new Double[]{0.44407, 0.89599};
-//        vectorB = new Double[]{0.52212, 0.85287};
+//        vectorA = new Double[]{-0.46788, 0.88379};
+//        vectorB = new Double[]{-0.31649, 0.94859};
 //        System.out.println(AngularDistance(vectorA, vectorB));
     }
 

@@ -666,6 +666,31 @@ public class onlinePartitioningForSsj {
     }
 
 
+    public static class LogicalPartitionCentroidsList implements MapFunction<
+            Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>,
+            List<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>>{
+
+        HashMap<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>> centroids = new HashMap<>();
+        @Override
+        public List<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> map(
+                Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>> t) throws Exception {
+
+            centroids.put(t.f0, t.f1);
+            ArrayList<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> out = new ArrayList<>();
+            for(Integer i : centroids.keySet()){
+                out.add(
+                        new Tuple2<>(
+                                i,
+                                centroids.get(i)
+                        )
+                );
+            }
+
+            return out;
+        }
+    }
+
+
 
     public static void main(String[] args) throws Exception{
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -675,6 +700,9 @@ public class onlinePartitioningForSsj {
         env.setParallelism(10);
 
         LOG.info("Enter main.");
+
+        final OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
+                new OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>("logicalCentroids"){};
 
         final OutputTag<Tuple3<Long, Integer, Integer>> sideLP =
                 new OutputTag<Tuple3<Long, Integer, Integer>>("logicalPartitions"){};
@@ -696,7 +724,7 @@ public class onlinePartitioningForSsj {
 
         SingleOutputStreamOperator<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> lpData = ppData
                 .keyBy(t -> t.f0)
-                .process(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP));
+                .process(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
 
         final OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
                 new OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
@@ -726,6 +754,17 @@ public class onlinePartitioningForSsj {
         //<------- Records labeled with logical partition ids ---------->
         lpData.writeAsText(pwd+"/src/main/outputs/LogicalPartitioning.txt", FileSystem.WriteMode.OVERWRITE);
 
+        //<--------- Logical Partitions and centroids --------->
+        lpData.getSideOutput(sideLCentroids)
+                .map(new LogicalPartitionCentroidsList())
+                .addSink(new SinkFunction<List<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>>() {
+                    @Override
+                    public void invoke(List<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> value, Context context) throws Exception {
+                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/LogicalPartitionCentroids.txt");
+                        myWriter.write(value.toString());
+                        myWriter.close();
+                    }
+                });
 
         //<-------  Capture the size of physical partitions --------->
         ppData
@@ -906,7 +945,7 @@ public class onlinePartitioningForSsj {
                 .window(TumblingEventTimeWindows.of(Time.seconds(1)))
                 .process(new LLCostCalculator());
 
-//        listCosts.print();
+        listCosts.writeAsText(pwd+"/src/main/outputs/LogicalPartitionCostPerWindow.txt", FileSystem.WriteMode.OVERWRITE);
 
 
         //<----------- Mapping cost for logical level ----------->

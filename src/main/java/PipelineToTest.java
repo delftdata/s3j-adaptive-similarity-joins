@@ -11,6 +11,7 @@ import org.apache.flink.util.OutputTag;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -33,6 +34,9 @@ public class PipelineToTest {
         final OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
                 new OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
 
+        final OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
+                new OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>("logicalCentroids"){};
+
         final OutputTag<Tuple3<Long, Integer, Integer>> sideLP =
                 new OutputTag<Tuple3<Long, Integer, Integer>>("logicalPartitions"){};
 
@@ -49,7 +53,7 @@ public class PipelineToTest {
 
         DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> partitionedData = ppData
                 .keyBy(t-> t.f0)
-                .process(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP));
+                .process(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
 
         partitionedData
                 .keyBy(new onlinePartitioningForSsj.LogicalKeySelector())
