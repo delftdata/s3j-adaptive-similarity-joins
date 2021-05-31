@@ -42,10 +42,10 @@ public class onlinePartitioningForSsj {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
-    public static class CustomOnElementTrigger extends Trigger<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, GlobalWindow>{
+    public static class CustomOnElementTrigger extends Trigger<Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, GlobalWindow>{
 
         @Override
-        public TriggerResult onElement(Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]> t, long l, GlobalWindow window, TriggerContext triggerContext) throws Exception {
+        public TriggerResult onElement(Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer> t, long l, GlobalWindow window, TriggerContext triggerContext) throws Exception {
             return TriggerResult.FIRE;
         }
 
@@ -66,19 +66,25 @@ public class onlinePartitioningForSsj {
     }
 
 
-    static public class CustomFiltering extends ProcessFunction<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>,Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> {
+    static public class CustomFiltering extends ProcessFunction<
+            Tuple3<Boolean,
+                    Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,
+                    Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[], Integer>>,
+            Tuple3<Boolean,
+                    Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,
+                    Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[], Integer>>> {
 
-        OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats;
+        OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats;
 
         public CustomFiltering(
-                OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats){
+                OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats){
             this.sideStats = sideStats;
         }
 
         @Override
-        public void processElement(Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> t,
+        public void processElement(Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>> t,
                                    Context context, Collector<Tuple3<Boolean,
-                Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> collector)
+                Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> collector)
                 throws Exception {
 
             if(t.f0){
@@ -142,11 +148,11 @@ public class onlinePartitioningForSsj {
         }
     }
 
-    public static class LogicalKeySelector implements KeySelector<Tuple9<Integer,String,Integer, String, Integer, Integer, Long, Integer, Double[]>, Tuple2<Integer, Integer>>{
+    public static class LogicalKeySelector implements KeySelector<Tuple10<Integer,String,Integer, String, Integer, Integer, Long, Integer, Double[],Integer>, Tuple3<Integer, Integer, Integer>>{
 
         @Override
-        public Tuple2<Integer, Integer> getKey(Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]> t) throws Exception {
-            return new Tuple2<Integer, Integer>(t.f0,t.f2);
+        public Tuple3<Integer, Integer, Integer> getKey(Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer> t) throws Exception {
+            return new Tuple3<Integer, Integer, Integer>(t.f0, t.f9, t.f2);
         }
     }
 
@@ -317,7 +323,7 @@ public class onlinePartitioningForSsj {
 
 
     public  static class BetweenPhyPartMapper implements FlatMapFunction
-            <Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>,
+            <Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>,
                     Tuple4<Integer, Integer, Boolean, Long>>{
 
 
@@ -325,8 +331,8 @@ public class onlinePartitioningForSsj {
         public void flatMap(Tuple4<
                 Long,
                 Boolean,
-                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>,
-                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> t,
+                Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>,
+                Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>> t,
                             Collector<Tuple4<Integer, Integer, Boolean, Long>> collector) throws Exception {
 
 
@@ -400,19 +406,19 @@ public class onlinePartitioningForSsj {
 
 
     public static class BetweenLogicalMapper implements FlatMapFunction
-            <Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>,
+            <Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>,
             Tuple5<Integer, Integer, Integer, Boolean, Long>>{
 
         @Override
         public void flatMap(Tuple4<
                 Long,
                 Boolean,
-                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>,
-                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> t,
+                Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>,
+                Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>> t,
                             Collector<Tuple5<Integer, Integer, Integer, Boolean, Long>> collector) throws Exception {
 
-            Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]> t1 = t.f2;
-            Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]> t2 = t.f3;
+            Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer> t1 = t.f2;
+            Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer> t2 = t.f3;
 
 
             if(t1.f3.equals("pInner") && t2.f3.equals("pInner")){
@@ -722,21 +728,21 @@ public class onlinePartitioningForSsj {
                 flatMap(new PhysicalPartitioner(0.1, SimilarityJoinsUtil.RandomCentroids(10, 2), (env.getMaxParallelism()/env.getParallelism())+1));
 
 
-        SingleOutputStreamOperator<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> lpData = ppData
+        SingleOutputStreamOperator<Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>> lpData = ppData
                 .keyBy(t -> t.f0)
                 .process(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP));
 
-        final OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
-                new OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
+        final OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats =
+                new OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>("stats"){};
 
-        SingleOutputStreamOperator<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>
+        SingleOutputStreamOperator<Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>
                 unfilteredSelfJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
                 .window(GlobalWindows.create())
                 .trigger(new CustomOnElementTrigger())
                 .process(new SimilarityJoin(0.1, LOG, sideJoins));
 
-        SingleOutputStreamOperator<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>
+        SingleOutputStreamOperator<Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
@@ -984,6 +990,8 @@ public class onlinePartitioningForSsj {
                                 return new Tuple3<>(joinCost.f0, joinCost.f1, cost);
                             }
                         });
+
+
 
         totalCosts.writeAsText(pwd+"/src/main/outputs/windowedTotalCostPerMachine.txt", FileSystem.WriteMode.OVERWRITE);
 

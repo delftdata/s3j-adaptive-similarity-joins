@@ -1,3 +1,4 @@
+import org.apache.flink.api.java.tuple.Tuple10;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple9;
@@ -12,9 +13,9 @@ import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 
 
-public class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>,
-        Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>,
-        Tuple2<Integer,Integer>,
+public class SimilarityJoin extends ProcessWindowFunction<Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,
+        Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>,
+        Tuple3<Integer,Integer,Integer>,
         GlobalWindow> {
 
     Double dist_thresh;
@@ -29,22 +30,22 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple9<Integer,String,
 
 
     @Override
-    public void process(Tuple2<Integer,Integer> key,
+    public void process(Tuple3<Integer,Integer,Integer> key,
                         Context ctx,
-                        Iterable<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> tuples,
+                        Iterable<Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[],Integer>> tuples,
                         Collector<Tuple3<Boolean,
-                                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>,
-                                Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>>> collector)
+                                Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>,
+                                Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>>> collector)
             throws Exception {
 
-        Iterator<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> tuplesIterator = tuples.iterator();
-        LinkedList<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> tuplesList = new LinkedList<>();
+        Iterator<Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>> tuplesIterator = tuples.iterator();
+        LinkedList<Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>> tuplesList = new LinkedList<>();
         tuplesIterator.forEachRemaining(tuplesList::addFirst);
 
-        Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]> newTuple = tuplesList.pollFirst();
+        Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer> newTuple = tuplesList.pollFirst();
         Double[] newTupleEmbed = newTuple.f8;
 
-        for (Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]> t : tuplesList ) {
+        for (Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer> t : tuplesList ) {
 
 //            LOG.info(newTuple.toString()+", "+t.toString());
             boolean exp = (

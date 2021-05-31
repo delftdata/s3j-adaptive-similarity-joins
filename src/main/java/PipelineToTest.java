@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.slf4j.Logger;
+import scala.Int;
 
 
 public class PipelineToTest {
@@ -31,8 +32,8 @@ public class PipelineToTest {
 
         CollectSink.values.clear();
 
-        final OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>> sideStats =
-                new OutputTag<Tuple4<Long, Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>>("stats"){};
+        final OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats =
+                new OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>("stats"){};
 
 //        final OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
 //                new OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>("logicalCentroids"){};
@@ -51,7 +52,7 @@ public class PipelineToTest {
 
 //        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
 
-        DataStream<Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> partitionedData = ppData
+        DataStream<Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>> partitionedData = ppData
                 .keyBy(t-> t.f0)
                 .process(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP));
 
@@ -80,10 +81,10 @@ public class PipelineToTest {
         }
     }
 
-    private static class Map2ID implements MapFunction<Tuple3<Boolean, Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>,Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>>, Tuple2<Integer,Integer>> {
+    private static class Map2ID implements MapFunction<Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>, Tuple2<Integer,Integer>> {
 
         @Override
-        public Tuple2<Integer, Integer> map(Tuple3<Boolean, Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>, Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> t) throws Exception {
+        public Tuple2<Integer, Integer> map(Tuple3<Boolean, Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>, Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[],Integer>> t) throws Exception {
             return new Tuple2<>(t.f1.f7, t.f2.f7);
         }
     }

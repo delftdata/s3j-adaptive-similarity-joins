@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 public class AdaptivePartitioner extends
         ProcessFunction<Tuple6<Integer,String,Integer,Long,Integer,Double[]>,
-                        Tuple9<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[]>> {
+                        Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>> {
 
     Double dist_thresh;
     int keyRange;
@@ -72,7 +72,7 @@ public class AdaptivePartitioner extends
     @Override
     public void processElement(Tuple6<Integer, String, Integer, Long, Integer, Double[]> t,
                                Context context,
-                               Collector<Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>> collector)
+                               Collector<Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>> collector)
             throws Exception {
 
         Double[] emb = t.f5;
@@ -89,7 +89,7 @@ public class AdaptivePartitioner extends
                 distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                 if (dist <= 2 * dist_thresh) {
-                    collector.collect(new Tuple9<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2, -1, t.f3, t.f4, t.f5));
+                    collector.collect(new Tuple10<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2, -1, t.f3, t.f4, t.f5, mappingGroupsToNodes.get(centroid.getKey()).f1));
 //                    LOG.info(new Tuple9<>(centroid.getKey(), "outer", t.f0, t.f1, t.f2, -1, t.f3, t.f4, t.f5).toString());
                 }
             }
@@ -98,12 +98,12 @@ public class AdaptivePartitioner extends
         else if (t.f1.equals("pInner")) {
             if (part_num == 0) {
                 mappingGroupsToNodes.put(1, new Tuple2<>(new Tuple3<Long, Integer, Double[]>(t.f3, t.f4, emb), t.f0));
-                collector.collect(new Tuple9<>(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5));
+                collector.collect(new Tuple10<>(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5, mappingGroupsToNodes.get(1).f1));
 //                LOG.info(new Tuple9<>(1, "inner", t.f0, t.f1, t.f2, 1,t.f3, t.f4, t.f5).toString());
                 for(Tuple6<Integer,String,Integer,Long,Integer,Double[]> po : phyOuters.get()){
                     Double[] temp = po.f5;
                     if(SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh){
-                        collector.collect(new Tuple9<>(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5));
+                        collector.collect(new Tuple10<>(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, mappingGroupsToNodes.get(1).f1));
 //                        LOG.info(new Tuple9<>(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
                     }
                 }
@@ -114,7 +114,7 @@ public class AdaptivePartitioner extends
                     distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                     if (dist <= 0.5 * dist_thresh) {
-                        collector.collect(new Tuple9<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2, centroid.getKey(), t.f3, t.f4, t.f5));
+                        collector.collect(new Tuple10<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2, centroid.getKey(), t.f3, t.f4, t.f5, mappingGroupsToNodes.get(centroid.getKey()).f1));
 //                        LOG.info(new Tuple9<>(centroid.getKey(), "inner", t.f0, t.f1, t.f2, centroid.getKey(), t.f3, t.f4, t.f5).toString());
                         inner = centroid.getKey();
                     }
@@ -124,13 +124,13 @@ public class AdaptivePartitioner extends
                     if (distances.peek().f1 > dist_thresh) {
                         inner = part_num + 1;
                         mappingGroupsToNodes.put(part_num + 1, new Tuple2<>(new Tuple3<>(t.f3, t.f4, emb), t.f0));
-                        collector.collect(new Tuple9<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5));
+                        collector.collect(new Tuple10<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5, mappingGroupsToNodes.get(part_num+1).f1));
 //                        LOG.info(new Tuple9<>(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5).toString());
                         for(Tuple6<Integer,String,Integer,Long,Integer,Double[]> po : phyOuters.get()){
                             Double[] temp = po.f5;
 
                             if(SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh){
-                                collector.collect(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5));
+                                collector.collect(new Tuple10<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, mappingGroupsToNodes.get(part_num+1).f1));
 //                                LOG.info(new Tuple9<>(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5).toString());
                             }
                         }
@@ -141,7 +141,7 @@ public class AdaptivePartitioner extends
                             outliers.add(new Tuple7<>(inner,t.f0, t.f1, t.f2, t.f3, t.f4, t.f5));
                             isOutlier = true;
                             collector.collect(
-                                    new Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2, distances.peek().f0, t.f3, t.f4, t.f5));
+                                    new Tuple10<>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2, distances.peek().f0, t.f3, t.f4, t.f5, mappingGroupsToNodes.get(distances.peek().f0).f1));
 //                            LOG.info(new Tuple9<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[]>(distances.peek().f0, "outlier", t.f0, t.f1, t.f2, distances.peek().f0, t.f3, t.f4, t.f5).toString());
                         } else {
                             inner = distances.peek().f0;
@@ -156,7 +156,7 @@ public class AdaptivePartitioner extends
                             break;
                         } else {
                             if (inner > temp.f0) {
-                                collector.collect(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5));
+                                collector.collect(new Tuple10<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5, mappingGroupsToNodes.get(temp.f0).f1));
 //                                LOG.info(new Tuple9<>(temp.f0, "outer", t.f0, t.f1, t.f2, inner, t.f3, t.f4, t.f5).toString());
                             }
 
