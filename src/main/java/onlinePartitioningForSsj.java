@@ -16,6 +16,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -696,6 +697,46 @@ public class onlinePartitioningForSsj {
         }
     }
 
+    public static class TotalCostToList extends ProcessAllWindowFunction<Tuple3<Long,Integer,Long>,List<Tuple3<Long,Integer,Long>>,TimeWindow> {
+
+        Integer p, maxP;
+
+        public TotalCostToList(Integer p, Integer maxP){
+            this.p = p;
+            this.maxP = maxP;
+        }
+
+        @Override
+        public void process(Context context, Iterable<Tuple3<Long, Integer, Long>> iterable, Collector<List<Tuple3<Long, Integer, Long>>> collector) throws Exception {
+            HashMap<Integer, Long> costs = new HashMap<>();
+            Integer pivot = 1+maxP/p;
+            Long tmsp = null;
+
+            for(int i=0; i<p ; i++){
+                costs.put(i*pivot, 0L);
+            }
+
+            for(Tuple3<Long,Integer,Long> t : iterable){
+                costs.put(t.f1, t.f2);
+                tmsp = t.f0;
+            }
+
+            List<Tuple3<Long,Integer,Long>> out = new ArrayList<>();
+            for(Integer key : costs.keySet()){
+                out.add(
+                        new Tuple3<>(
+                                tmsp,
+                                key,
+                                costs.get(key)
+                        )
+                );
+            }
+
+            collector.collect(out);
+
+        }
+    }
+
 
 
     public static void main(String[] args) throws Exception{
@@ -991,10 +1032,21 @@ public class onlinePartitioningForSsj {
                             }
                         });
 
+        DataStream<List<Tuple3<Long, Integer, Long>>> totalCostsList =
+                totalCosts
+                        .windowAll(TumblingEventTimeWindows.of(Time.seconds(1)))
+                        .process(new TotalCostToList(10, 128));
 
+        totalCostsList.writeAsText(pwd+"/src/main/outputs/windowedTotalCostList.txt", FileSystem.WriteMode.OVERWRITE);
 
         totalCosts.writeAsText(pwd+"/src/main/outputs/windowedTotalCostPerMachine.txt", FileSystem.WriteMode.OVERWRITE);
 
+
+
+        //<------------ Find overloaded and underloaded nodes ----------->
+        totalCostsList
+                .map(new FindCandidateNodes())
+                .print();
 
 //          CHECK WITH MARIOS
 
