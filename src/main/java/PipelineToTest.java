@@ -35,8 +35,8 @@ public class PipelineToTest {
         final OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats =
                 new OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>("stats"){};
 
-//        final OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
-//                new OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>("logicalCentroids"){};
+        final OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
+                new OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>("logicalCentroids"){};
 
         final OutputTag<Tuple3<Long, Integer, Integer>> sideLP =
                 new OutputTag<Tuple3<Long, Integer, Integer>>("logicalPartitions"){};
@@ -54,7 +54,7 @@ public class PipelineToTest {
 
         DataStream<Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>> partitionedData = ppData
                 .keyBy(t-> t.f0)
-                .process(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP));
+                .process(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
 
         partitionedData
                 .keyBy(new onlinePartitioningForSsj.LogicalKeySelector())

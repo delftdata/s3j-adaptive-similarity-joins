@@ -27,7 +27,7 @@ public class AdaptivePartitioner extends
     int keyRange;
     private Logger LOG;
     OutputTag<Tuple3<Long, Integer, Integer>> sideLP;
-//    OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids;
+    OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids;
     ListState<Tuple7<Integer,Integer,String,Integer,Long,Integer,Double[]>> outliers;
     ListState<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> phyOuters;
     MapState<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> mappingGroupsToNodes;
@@ -35,12 +35,14 @@ public class AdaptivePartitioner extends
     public AdaptivePartitioner(Double dist_thresh,
                                int keyRange,
                                Logger LOG,
-                               OutputTag<Tuple3<Long, Integer, Integer>> sideLP
+                               OutputTag<Tuple3<Long, Integer, Integer>> sideLP,
+                               OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids
     ) throws Exception{
         this.dist_thresh = dist_thresh;
         this.keyRange = keyRange;
         this.LOG = LOG;
         this.sideLP = sideLP;
+        this.sideLCentroids = sideLCentroids;
     }
 
     @Override
@@ -170,6 +172,11 @@ public class AdaptivePartitioner extends
         }
 
         context.output(sideLP, new Tuple3<Long, Integer, Integer>(t.f3, t.f0, Iterables.size(mappingGroupsToNodes.keys())));
-//        context.output(sideLCentroids, new Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>(t.f0, partitions));
+
+        HashMap<Integer, Tuple3<Long,Integer,Double[]>> partitions = new HashMap<>();
+        for(Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>,Integer>> centroid : mappingGroupsToNodes.entries()){
+            partitions.put(centroid.getKey(), centroid.getValue().f0);
+        }
+        context.output(sideLCentroids, new Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>(t.f0, partitions));
     }
 }
