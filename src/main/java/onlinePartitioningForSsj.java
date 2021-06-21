@@ -1010,7 +1010,7 @@ public class onlinePartitioningForSsj {
 
 //        mappingCostLL.print();
 
-
+        // Mapping Cost removed since the join computations are decoupled from the group making.
         //<----------- Total cost per machine -------->
         DataStream<Tuple3<Long, Integer, Long>> totalCosts =
                 listCosts
@@ -1027,7 +1027,7 @@ public class onlinePartitioningForSsj {
                         .apply(new JoinFunction<Tuple3<Long, Integer, Long>, Tuple3<Long, Integer, Long>, Tuple3<Long, Integer, Long>>() {
                             @Override
                             public Tuple3<Long, Integer, Long> join(Tuple3<Long, Integer, Long> joinCost, Tuple3<Long, Integer, Long> mappingCost) throws Exception {
-                                Long cost = joinCost.f2 + mappingCost.f2;
+                                Long cost = joinCost.f2;
                                 return new Tuple3<>(joinCost.f0, joinCost.f1, cost);
                             }
                         });
