@@ -100,11 +100,12 @@ public class LLCostCalculator extends ProcessWindowFunction<Tuple5<Long, Integer
                 Long outers = recordTypes.get("outer");
                 Long inners = recordTypes.get("inner");
 
-                Long stateOutliers = stateStore.get(lp).get("outlier");
-                Long stateOuters = stateStore.get(lp).get("outer");
-                Long stateInners = stateStore.get(lp).get("inner");
+                Long stateOutliers = stateStore.get(lp).get("outlier") - outliers;
+                Long stateOuters = stateStore.get(lp).get("outer") - outers;
+                Long stateInners = stateStore.get(lp).get("inner") - inners;
 
-                Long cost = (outliers * (stateOuters + stateOutliers + stateInners)) + (outers * (stateInners + stateOutliers) + (inners * (stateOuters + stateOutliers)));
+                Long cost = (outliers * (stateOuters + stateOutliers + stateInners)) + (outers * (stateInners + stateOutliers) + (inners * (stateOuters + stateOutliers)))
+                        + (outliers * (outers + inners)) +  (outers * inners) + (outliers * (outliers-1))/2;
 
                 if(!costs.containsKey(pp)){
                     HashMap<Integer, Long> tmp = new HashMap<>();
