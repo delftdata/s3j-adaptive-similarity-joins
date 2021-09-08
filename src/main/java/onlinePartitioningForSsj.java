@@ -759,7 +759,9 @@ public class onlinePartitioningForSsj {
 
         env.setParallelism(1);
 
-        DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream("1K_2D_Array_Stream_v2.txt");
+        String pathToFile = args[0];
+
+        DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(pathToFile);
 //        data.print();
 //        DataStream<Tuple3<Long, Integer, Double[]>> embeddedData = data.map(new WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
 

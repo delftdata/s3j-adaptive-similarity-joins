@@ -23,9 +23,9 @@ public class StreamFactory {
         return simpleWords;
     }
 
-    public DataStream<Tuple3<Long, Integer, Double[]>> create2DArrayStream(String inputFileName){
-        String path = Resource.getPath(inputFileName);
-        DataStream<Tuple3<Long, Integer, Double[]>> arrays2D = env.readTextFile(path,"UTF-8").map(new ArrayStreamParser());
+    public DataStream<Tuple3<Long, Integer, Double[]>> create2DArrayStream(String pathToFile){
+//        String path = Resource.getPath(inputFileName);
+        DataStream<Tuple3<Long, Integer, Double[]>> arrays2D = env.readTextFile(pathToFile,"UTF-8").map(new ArrayStreamParser());
         arrays2D = arrays2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Long, Integer, Double[]>>() {
             @Override
             public long extractAscendingTimestamp(Tuple3<Long, Integer, Double[]> t) {

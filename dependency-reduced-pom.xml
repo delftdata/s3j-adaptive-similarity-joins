@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.example</groupId>
   <artifactId>online_partitioning_for_ssj</artifactId>
-  <name>Flink Quickstart Job</name>
+  <name>Online partitioning for Streaming Similarity Joins</name>
   <version>1.0</version>
   <url>http://www.myorganization.org</url>
   <build>
@@ -104,7 +104,10 @@
               </filters>
               <transformers>
                 <transformer>
-                  <mainClass>src.main.java.onlinePartitioningForSsj</mainClass>
+                  <mainClass>onlinePartitioningForSsj</mainClass>
+                </transformer>
+                <transformer>
+                  <resource>reference.conf</resource>
                 </transformer>
               </transformers>
             </configuration>
