@@ -789,7 +789,8 @@ public class onlinePartitioningForSsj {
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
-//        selfJoinedStream.print();
+        selfJoinedStream.writeAsText("join_results/");
+        System.out.println("Stream ended");
 
 
 //*********************************************      STATISTICS SECTION      *******************************************
