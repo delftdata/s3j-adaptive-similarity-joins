@@ -1,38 +1,24 @@
-import org.apache.commons.math3.analysis.function.Sin;
+import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.common.functions.*;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.typeinfo.TypeHint;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.*;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.datastream.WindowedStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
-import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Int;
 
-import java.io.FileWriter;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -761,7 +747,18 @@ public class onlinePartitioningForSsj {
 
         String pathToFile = args[0];
 
-        DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(pathToFile);
+        DataStream<Tuple3<Long, Integer, Double[]>> data;
+
+        if (pathToFile.equals("gaussian_2D_generator")){
+            data = streamFactory.createGaussian2DStream(42, 1000, 10L);
+        }
+        else if(pathToFile.equals("skewed_gaussian_2D_generator")){
+            data = streamFactory.createSkewedGaussian2DStream(42, 1000, 10L);
+        }
+        else{
+            data = streamFactory.create2DArrayStream(pathToFile);
+        }
+        data.writeAsText(pwd+"/src/main/resources/streamed_dataset.txt", FileSystem.WriteMode.OVERWRITE);
 //        data.print();
 //        DataStream<Tuple3<Long, Integer, Double[]>> embeddedData = data.map(new WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
 
@@ -790,14 +787,13 @@ public class onlinePartitioningForSsj {
                 .process(new CustomFiltering(sideStats));
 
         selfJoinedStream.writeAsText("join_results/");
-        System.out.println("Stream ended");
 
 
 //*********************************************      STATISTICS SECTION      *******************************************
 
 //        env.setParallelism(1);
-//
-//
+
+
 //        //<-------  Records labeled with partition ids ---------->
 //        ppData.writeAsText(pwd+"/src/main/outputs/PhysicalPartitioning.txt", FileSystem.WriteMode.OVERWRITE);
 //
@@ -985,7 +981,7 @@ public class onlinePartitioningForSsj {
 //
 //        rtlp.getSideOutput(lateRTLP).print();
 //        rtlp.map(new RecordTypeLPMapper()).map(new RecordTypeLPList()).writeAsText(pwd+"/src/main/outputs/LogicalPartitionSizePerWindow.txt", FileSystem.WriteMode.OVERWRITE);
-//
+
 //
 //        //<--------- Cost calculation per logical partition ----------->
 //
@@ -993,7 +989,7 @@ public class onlinePartitioningForSsj {
 //            rtlp.map(new RecordTypeLPMapper())
 //                .keyBy(t -> t.f1)
 //                .window(TumblingEventTimeWindows.of(Time.seconds(1)))
-//                .process(new LLCostCalculator());
+//                .process(new Statistics.LLCostCalculator());
 //
 //        listCosts.writeAsText(pwd+"/src/main/outputs/LogicalPartitionCostPerWindow.txt", FileSystem.WriteMode.OVERWRITE);
 //
@@ -1048,7 +1044,7 @@ public class onlinePartitioningForSsj {
 //
 //        //<------------ Find overloaded and underloaded nodes ----------->
 //        totalCostsList
-//                .map(new FindCandidateNodes())
+//                .map(new Statistics.FindCandidateNodes())
 //                .print();
 
 //          CHECK WITH MARIOS

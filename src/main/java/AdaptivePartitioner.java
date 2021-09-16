@@ -1,4 +1,4 @@
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.MapState;
@@ -17,7 +17,6 @@ import java.util.PriorityQueue;
 
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class AdaptivePartitioner extends
         ProcessFunction<Tuple6<Integer,String,Integer,Long,Integer,Double[]>,

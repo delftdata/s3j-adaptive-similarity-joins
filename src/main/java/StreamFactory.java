@@ -1,3 +1,8 @@
+import Generators.Gaussian2DStreamGenerator;
+import Generators.Uniform2DStreamGenerator;
+import Generators.SkewedGaussian2DStreamGenerator;
+import Parsers.ArrayStreamParser;
+import Parsers.Parser;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -34,4 +39,39 @@ public class StreamFactory {
         });
         return arrays2D;
     }
+
+    public DataStream<Tuple3<Long, Integer, Double[]>> createGaussian2DStream(int seed, int rate, Long tmsp){
+        DataStream<Tuple3<Long, Integer, Double[]>> gaussian2D = env.addSource(new Gaussian2DStreamGenerator(seed, rate, tmsp));
+        gaussian2D = gaussian2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Long, Integer, Double[]>>() {
+            @Override
+            public long extractAscendingTimestamp(Tuple3<Long, Integer, Double[]> t) {
+                return t.f0;
+            }
+        });
+        return gaussian2D;
+    }
+
+    public DataStream<Tuple3<Long, Integer, Double[]>> createSkewedGaussian2DStream(int seed, int rate, Long tmsp){
+        DataStream<Tuple3<Long, Integer, Double[]>> skewed_gaussian2D = env.addSource(new SkewedGaussian2DStreamGenerator(seed, rate, tmsp));
+        skewed_gaussian2D = skewed_gaussian2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Long, Integer, Double[]>>() {
+            @Override
+            public long extractAscendingTimestamp(Tuple3<Long, Integer, Double[]> t) {
+                return t.f0;
+            }
+        });
+        return skewed_gaussian2D;
+    }
+
+    public DataStream<Tuple3<Long, Integer, Double[]>> createUniform2DStream(int seed, int rate, Long tmsp){
+        DataStream<Tuple3<Long, Integer, Double[]>> uniform = env.addSource(new Uniform2DStreamGenerator(seed, rate, tmsp));
+        uniform = uniform.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Long, Integer, Double[]>>() {
+            @Override
+            public long extractAscendingTimestamp(Tuple3<Long, Integer, Double[]> t) {
+                return t.f0;
+            }
+        });
+        return uniform;
+    }
+
+
 }

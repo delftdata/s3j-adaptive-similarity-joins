@@ -1,9 +1,15 @@
+package Utils;
+
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.math3.distribution.ParetoDistribution;
+import org.apache.commons.math3.distribution.ZipfDistribution;
 import org.apache.commons.math3.ml.distance.EuclideanDistance;
+import org.apache.commons.math3.random.Well19937c;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import scala.Int;
+import scala.concurrent.java8.FuturesConvertersImpl;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -81,13 +87,112 @@ public class SimilarityJoinsUtil {
         return doubleArray;
     }
 
-    static public double nextSkewedBoundedDouble(double min, double max, double skew, double bias, Random rand) {
+    public static double nextSkewedBoundedDouble(double min, double max, double skew, double bias, Random rand) {
         double range = max - min;
         double mid = min + range / 2.0;
         double unitGaussian = rand.nextGaussian();
         double biasFactor = Math.exp(bias);
         double retval = mid+(range*(biasFactor/(biasFactor+Math.exp(-unitGaussian/skew))-0.5));
         return retval;
+    }
+
+    public static void createZipfianWordStream(Set<String> wordSet, int rate, int tmsp) throws IOException {
+        List<String> words = new ArrayList<String>(wordSet);
+        Random rand = new Random(42);
+        Collections.shuffle(words, rand);
+
+        try{
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/zipfianWordStream.txt");
+            Random randRate = new Random(70);
+            Well19937c randZipf = new Well19937c(3);
+            ZipfDistribution zipf = new ZipfDistribution(randZipf, words.size(), 2.0);
+            long id = 0;
+            for(int t = 0; t < tmsp; t++){
+                int tRate = (int) (randRate.nextInt((int)(0.2*rate)) + 0.95*rate);
+                System.out.format("%d, %d\n", t, tRate);
+                for(int i = 0; i < tRate; i++){
+                    int wordIndex = zipf.sample()-1;
+                    String nextStreamItem = words.get(wordIndex);
+                    String toWrite = String.format("%d, %d, %s\n", t*1000, id, nextStreamItem);
+                    myWriter.write(toWrite);
+                    id++;
+                }
+            }
+            myWriter.close();
+        }
+        catch(Exception e){
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+
+    }
+
+    public static void create2DParetoStream(int rate, int tmsp) throws IOException {
+        try {
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/2DParetoStream.txt");
+            Random randRate = new Random(70);
+            Well19937c randPareto = new Well19937c(42);
+            ParetoDistribution pareto = new ParetoDistribution(randPareto, 5, 5);
+            long id = 0;
+            for(int t = 0; t < tmsp; t++){
+                int tRate = (int) (randRate.nextInt((int)(0.2*rate)) + 0.95*rate);
+                System.out.format("%d, %d\n", t, tRate);
+                for(int i = 0; i < tRate; i++){
+                    double x = pareto.sample();
+                    double y = pareto.sample();
+                    String nextStreamItem = new Tuple2<Double, Double>(x,y).toString();
+                    String toWrite = String.format("%d, %d, %s\n", t*1000, id, nextStreamItem);
+                    myWriter.write(toWrite);
+                    id++;
+                }
+            }
+            myWriter.close();
+        }
+        catch(Exception e){
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    public static void createComplex2DStream(int rate, int tmsp) throws IOException {
+        try {
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/Complex2DStream.txt");
+            Random randRate = new Random(70);
+            Well19937c randZipf = new Well19937c(42);
+            List<ParetoTopic2D> topics = new ArrayList<>();
+            topics.add(new ParetoTopic2D(0.1, 0.5, 10, 10, 1, 1));
+            topics.add(new ParetoTopic2D(0.5, 0.1, 10, 10, 1, 1));
+            topics.add(new ParetoTopic2D(0.5, 0.5, 10, 10, -1, -1));
+            topics.add(new ParetoTopic2D(0.5, 0.5, 10, 10, 1, 1));
+            topics.add(new ParetoTopic2D(0.1, 0.5, 10, 10, -1, -1));
+            topics.add(new ParetoTopic2D(0.5, 0.1, 10, 10, -1, -1));
+            topics.add(new ParetoTopic2D(0.1, 0.5, 10, 10, 1, -1));
+            topics.add(new ParetoTopic2D(0.5, 0.1, 10, 10, -1, 1));
+
+            ZipfDistribution zipf = new ZipfDistribution(randZipf, topics.size(), 2.0);
+            int id = 0;
+
+            for(int t = 0; t < tmsp; t++){
+                int tRate = (int) (randRate.nextInt((int)(0.2*rate)) + 0.95*rate);
+                System.out.format("%d, %d\n", t, tRate);
+                for(int i = 0; i < tRate; i++){
+                    int zipfSample = zipf.sample() - 1;
+
+                    String nextStreamItem = topics.get(zipfSample).getParetoTuple().toString();
+                    String toWrite = String.format("%d, %d, %d, %s\n", t*1000, id, zipfSample, nextStreamItem);
+                    myWriter.write(toWrite);
+                    id++;
+                }
+            }
+            myWriter.close();
+        }
+        catch (Exception e){
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     public static void createStreamFile(HashMap<String, Double[]> embeddings, int N) throws Exception{
@@ -248,28 +353,10 @@ public class SimilarityJoinsUtil {
     }
 
     public static void main(String[] args) throws Exception{
-
-//        create2DArrayStream(1000);
-//        create2DGroundTruth("1K_2D_Array_Stream_v2", 0.05);
-//        HashMap<Integer, Double[]> cent = SimilarityJoinsUtil.RandomCentroids(10, 2);
-//        for(Integer k : cent.keySet()){
-//            System.out.println(Arrays.toString(cent.get(k)));
-//        }
-//        System.out.println(CosineDistance(cent.get(3), cent.get(6)));
-        Double[] vectorA;
-        Double[] vectorB;
-//
-        vectorA = new Double[]{0.0, 1.0};
-        vectorB = new Double[]{0.727, 1.0};
-        System.out.println(AngularDistance(vectorA, vectorB));
-//
-//        vectorA = new Double[]{0.0, 1.0};
-//        vectorB = new Double[]{0.44407, 0.89599};
-//        System.out.println(AngularDistance(vectorA, vectorB));
-//
-//        vectorA = new Double[]{-0.46788, 0.88379};
-//        vectorB = new Double[]{-0.31649, 0.94859};
-//        System.out.println(AngularDistance(vectorA, vectorB));
+//        HashMap<String, Double[]> embeddings = readEmbeddings("wiki-news-300d-1K.vec");
+//        Set<String> embKeys = embeddings.keySet();
+//        createZipfianWordStream(embKeys, 1000, 10);
+        createComplex2DStream(1000,10);
     }
 
 

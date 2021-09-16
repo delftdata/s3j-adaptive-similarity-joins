@@ -1,7 +1,8 @@
+package Parsers;
+
+import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
-
-import java.util.Arrays;
 
 public class ArrayStreamParser implements MapFunction<String, Tuple3<Long, Integer, Double[]>> {
 

@@ -1,6 +1,6 @@
+import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.*;
-import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.slf4j.Logger;
-import scala.Int;
 
 
 public class PipelineToTest {
