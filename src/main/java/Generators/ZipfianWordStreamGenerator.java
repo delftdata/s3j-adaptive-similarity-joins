@@ -12,18 +12,18 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
-public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, Long, String>>, CheckpointedFunction {
+public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, Integer, String>>, CheckpointedFunction {
 
-    private Long id = 0L;
-    private Long timestamp;
-    private Tuple3<Long, Long, String> tuple3;
+    private Integer id = 0;
+    private Long timestamp = 0L;
+    private Tuple3<Long, Integer, String> tuple3;
     private final String[] wordArray;
     private final ZipfDistribution zipf;
-    private int rate;
-    private Long tmsp;
+    private final int rate;
+    private final Long tmsp;
     private int tRate;
     private volatile boolean isRunning = true;
-    private transient ListState<Tuple3<Long, Long, String>> checkpointedTuples;
+    private transient ListState<Tuple3<Long, Integer, String>> checkpointedTuples;
 
     public ZipfianWordStreamGenerator(String[] words, Double zipfExp, int rate, Long tmsp){
         this.wordArray = words;
@@ -44,12 +44,12 @@ public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, L
     public void initializeState(FunctionInitializationContext context) throws Exception {
         this.checkpointedTuples = context
                 .getOperatorStateStore()
-                .getListState(new ListStateDescriptor<>("tuples", TypeInformation.of(new TypeHint<Tuple3<Long, Long, String>>() {})));
+                .getListState(new ListStateDescriptor<>("tuples", TypeInformation.of(new TypeHint<Tuple3<Long, Integer, String>>() {})));
 
     }
 
     @Override
-    public void run(SourceContext<Tuple3<Long, Long, String>> ctx) throws Exception {
+    public void run(SourceContext<Tuple3<Long, Integer, String>> ctx) throws Exception {
         while (isRunning && timestamp < tmsp) {
             // this synchronized block ensures that state checkpointing,
             // internal state updates and emission of elements are an atomic operation

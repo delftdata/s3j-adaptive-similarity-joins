@@ -1,4 +1,5 @@
 import Utils.SimilarityJoinsUtil;
+import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.functions.*;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.*;
@@ -19,8 +20,10 @@ import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.crypto.Data;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 
 public class onlinePartitioningForSsj {
@@ -98,6 +101,7 @@ public class onlinePartitioningForSsj {
 
         @Override
         public Tuple3<Long, Integer, Double[]> map(Tuple3<Long, Integer, String> t) throws Exception {
+
             return new Tuple3<>(t.f0, t.f1, wordEmbeddings.get(t.f2));
         }
     }
@@ -748,6 +752,8 @@ public class onlinePartitioningForSsj {
         String pathToFile = args[0];
 
         DataStream<Tuple3<Long, Integer, Double[]>> data;
+        int centroidsDim = 2;
+        int centroidsNum = 10;
 
         if (pathToFile.equals("gaussian_2D_generator")){
             data = streamFactory.createGaussian2DStream(42, 1000, 10L);
@@ -755,17 +761,28 @@ public class onlinePartitioningForSsj {
         else if(pathToFile.equals("skewed_gaussian_2D_generator")){
             data = streamFactory.createSkewedGaussian2DStream(42, 1000, 10L);
         }
+        else if(pathToFile.equals("uniform_2D_generator")){
+            data = streamFactory.createUniform2DStream(42, 1000, 10L);
+        }
+        else if(pathToFile.equals("pareto_2D_generator")){
+            data = streamFactory.createPareto2DStream(1.0, 10.0 , 1000, 10L);
+        }
+        else if(pathToFile.equals("zipfian_word_generator")){
+            data = streamFactory.createZipfianWordStream("wiki-news-300d-1K.vec", 2.0, 1000, 10L)
+                    .map(new WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
+            centroidsDim = 300;
+        }
         else{
             data = streamFactory.create2DArrayStream(pathToFile);
         }
+
+
         data.writeAsText(pwd+"/src/main/resources/streamed_dataset.txt", FileSystem.WriteMode.OVERWRITE);
-//        data.print();
-//        DataStream<Tuple3<Long, Integer, Double[]>> embeddedData = data.map(new WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
 
         env.setParallelism(10);
 
         DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.
-                flatMap(new PhysicalPartitioner(0.1, SimilarityJoinsUtil.RandomCentroids(10, 2), (env.getMaxParallelism()/env.getParallelism())+1));
+                flatMap(new PhysicalPartitioner(0.1, SimilarityJoinsUtil.RandomCentroids(centroidsNum, centroidsDim), (env.getMaxParallelism()/env.getParallelism())+1));
 
 
         SingleOutputStreamOperator<Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>> lpData = ppData
@@ -786,7 +803,7 @@ public class onlinePartitioningForSsj {
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
-        selfJoinedStream.writeAsText("join_results/");
+//        selfJoinedStream.writeAsText("join_results/", FileSystem.WriteMode.OVERWRITE);
 
 
 //*********************************************      STATISTICS SECTION      *******************************************
@@ -1088,8 +1105,8 @@ public class onlinePartitioningForSsj {
 
         LOG.info(env.getExecutionPlan());
 
-        env.execute();
-
+        JobExecutionResult result = env.execute("ssj");
+        System.out.println("The job took " + result.getNetRuntime(TimeUnit.SECONDS) + " seconds to execute");
 
     }
 }

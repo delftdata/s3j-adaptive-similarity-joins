@@ -16,7 +16,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Integer, Double[]>>, CheckpointedFunction {
 
     private int id = 0;
-    private Long timestamp;
+    private Long timestamp = 0L;
     private Tuple3<Long, Integer, Double[]> tuple3;
     private final ParetoDistribution pareto;
     private int rate;

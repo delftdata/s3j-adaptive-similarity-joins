@@ -1,12 +1,13 @@
-import Generators.Gaussian2DStreamGenerator;
-import Generators.Uniform2DStreamGenerator;
-import Generators.SkewedGaussian2DStreamGenerator;
+import Generators.*;
 import Parsers.ArrayStreamParser;
 import Parsers.Parser;
+import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+
+import java.util.Set;
 
 public class StreamFactory {
 
@@ -73,5 +74,35 @@ public class StreamFactory {
         return uniform;
     }
 
+    public DataStream<Tuple3<Long, Integer, Double[]>> createPareto2DStream(double scale, double shape, int rate, Long tmsp){
+        DataStream<Tuple3<Long, Integer, Double[]>> pareto = env.addSource(new Pareto2DStreamGenerator(scale, shape, rate, tmsp));
+        pareto = pareto.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Long, Integer, Double[]>>() {
+            @Override
+            public long extractAscendingTimestamp(Tuple3<Long, Integer, Double[]> t) {
+                return t.f0;
+            }
+        });
+        return pareto;
+    }
+
+    public DataStream<Tuple3<Long, Integer, String>> createZipfianWordStream(String embeddingsFile, double zipfExp, int rate, Long tmsp){
+        try {
+            Set<String> wordSet = SimilarityJoinsUtil.readEmbeddings(embeddingsFile).keySet();
+            String[] words = wordSet.toArray(new String[0]);
+            DataStream<Tuple3<Long, Integer, String>> zipfian = env.addSource(new ZipfianWordStreamGenerator(words, zipfExp, rate, tmsp));
+            zipfian = zipfian.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Long, Integer, String>>() {
+                @Override
+                public long extractAscendingTimestamp(Tuple3<Long, Integer, String> t) {
+                    return t.f0;
+                }
+            });
+            return zipfian;
+        }
+        catch(Exception e){
+            System.out.println(e.getMessage());
+            System.exit(-1);
+        }
+        return null;
+    }
 
 }
