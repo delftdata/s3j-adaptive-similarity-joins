@@ -1,4 +1,7 @@
-import Utils.SimilarityJoinsUtil;
+import Operators.AdaptivePartitioner;
+import Operators.PhysicalPartitioner;
+import Operators.SimilarityJoin;
+import Utils.*;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -56,11 +59,11 @@ public class PipelineToTest {
                 .process(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
 
         partitionedData
-                .keyBy(new onlinePartitioningForSsj.LogicalKeySelector())
+                .keyBy(new LogicalKeySelector())
                 .window(GlobalWindows.create())
-                .trigger(new onlinePartitioningForSsj.CustomOnElementTrigger())
+                .trigger(new CustomOnElementTrigger())
                 .process(new SimilarityJoin(0.05, LOG, sideJoins))
-                .process(new onlinePartitioningForSsj.CustomFiltering(sideStats))
+                .process(new CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());
 

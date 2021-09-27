@@ -178,6 +178,11 @@
                 <excludes>
                     <exclude>*</exclude>
                 </excludes>
+                <includes>
+                        <include>
+                            log4j.properties
+                        </include>
+                </includes>
             </resource>
             <resource>
                 <directory>src/main/outputs</directory>

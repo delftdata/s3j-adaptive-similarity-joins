@@ -1,7 +1,8 @@
+package Utils;
+
 import Generators.*;
 import Parsers.ArrayStreamParser;
 import Parsers.Parser;
-import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -30,7 +31,7 @@ public class StreamFactory {
     }
 
     public DataStream<Tuple3<Long, Integer, Double[]>> create2DArrayStream(String pathToFile){
-//        String path = Resource.getPath(inputFileName);
+//        String path = Utils.Resource.getPath(inputFileName);
         DataStream<Tuple3<Long, Integer, Double[]>> arrays2D = env.readTextFile(pathToFile,"UTF-8").map(new ArrayStreamParser());
         arrays2D = arrays2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Long, Integer, Double[]>>() {
             @Override

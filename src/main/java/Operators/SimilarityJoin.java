@@ -1,3 +1,5 @@
+package Operators;
+
 import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.java.tuple.Tuple10;
 import org.apache.flink.api.java.tuple.Tuple3;
