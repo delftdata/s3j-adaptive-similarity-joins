@@ -1,19 +1,15 @@
 package Utils;
 
+import CustomDataTypes.FinalOutput;
 import org.apache.flink.api.java.tuple.Tuple10;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 public class CustomFiltering extends ProcessFunction<
-        Tuple3<Boolean,
-                Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,
-                Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[], Integer>>,
-        Tuple3<Boolean,
-                Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,
-                Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[], Integer>>> {
+        FinalOutput,
+        FinalOutput> {
 
     OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats;
 
@@ -23,9 +19,8 @@ public class CustomFiltering extends ProcessFunction<
     }
 
     @Override
-    public void processElement(Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>> t,
-                               Context context, Collector<Tuple3<Boolean,
-            Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> collector)
+    public void processElement(FinalOutput t,
+                               Context context, Collector<FinalOutput> collector)
             throws Exception {
 
         if(t.f0){

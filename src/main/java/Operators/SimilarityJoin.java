@@ -1,7 +1,8 @@
 package Operators;
 
+import CustomDataTypes.FinalOutput;
+import CustomDataTypes.FinalTuple;
 import Utils.SimilarityJoinsUtil;
-import org.apache.flink.api.java.tuple.Tuple10;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
@@ -14,8 +15,8 @@ import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 
 
-public class SimilarityJoin extends ProcessWindowFunction<Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,
-        Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>,
+public class SimilarityJoin extends ProcessWindowFunction<FinalTuple,
+        FinalOutput,
         Tuple3<Integer,Integer,Integer>,
         GlobalWindow> {
 
@@ -33,20 +34,18 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple10<Integer,String
     @Override
     public void process(Tuple3<Integer,Integer,Integer> key,
                         Context ctx,
-                        Iterable<Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[],Integer>> tuples,
-                        Collector<Tuple3<Boolean,
-                                Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>,
-                                Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>>> collector)
+                        Iterable<FinalTuple> tuples,
+                        Collector<FinalOutput> collector)
             throws Exception {
 
-        Iterator<Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>> tuplesIterator = tuples.iterator();
-        LinkedList<Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>> tuplesList = new LinkedList<>();
+        Iterator<FinalTuple> tuplesIterator = tuples.iterator();
+        LinkedList<FinalTuple> tuplesList = new LinkedList<>();
         tuplesIterator.forEachRemaining(tuplesList::addFirst);
 
-        Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer> newTuple = tuplesList.pollFirst();
+        FinalTuple newTuple = tuplesList.pollFirst();
         Double[] newTupleEmbed = newTuple.f8;
 
-        for (Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer> t : tuplesList ) {
+        for (FinalTuple t : tuplesList ) {
 
 //            LOG.info(newTuple.toString()+", "+t.toString());
             boolean exp = (
@@ -68,7 +67,7 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple10<Integer,String
                 Double[] tEmbed = t.f8;
                 if(newTuple.f7 > t.f7) {
                     collector.collect(
-                            new Tuple3<>(
+                            new FinalOutput(
                                     (SimilarityJoinsUtil.AngularDistance(newTupleEmbed, tEmbed) < dist_thresh),
                                     newTuple,
                                     t
@@ -77,7 +76,7 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple10<Integer,String
                 }
                 else{
                     collector.collect(
-                            new Tuple3<>(
+                            new FinalOutput(
                                     (SimilarityJoinsUtil.AngularDistance(newTupleEmbed, tEmbed) < dist_thresh),
                                     t,
                                     newTuple
@@ -88,7 +87,7 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple10<Integer,String
             else if(newTuple.f1.equals("inner") && t.f1.equals("inner")){
                 if(newTuple.f7 > t.f7) {
                     collector.collect(
-                            new Tuple3<>(
+                            new FinalOutput(
                                     true,
                                     newTuple,
                                     t
@@ -97,7 +96,7 @@ public class SimilarityJoin extends ProcessWindowFunction<Tuple10<Integer,String
                 }
                 else{
                     collector.collect(
-                            new Tuple3<>(
+                            new FinalOutput(
                                     true,
                                     t,
                                     newTuple

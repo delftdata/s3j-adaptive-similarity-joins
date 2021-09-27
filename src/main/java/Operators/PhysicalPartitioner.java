@@ -1,5 +1,6 @@
 package Operators;
 
+import CustomDataTypes.SPTuple;
 import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -11,7 +12,7 @@ import java.util.Map;
 
 
 
-public class PhysicalPartitioner implements FlatMapFunction<Tuple3<Long,Integer,Double[]>, Tuple6<Integer,String,Integer, Long,Integer,Double[]>> {
+public class PhysicalPartitioner implements FlatMapFunction<Tuple3<Long,Integer,Double[]>, SPTuple> {
 
     Double dist_thresh;
     HashMap<Integer, Double[]> partCentroids;
@@ -24,7 +25,7 @@ public class PhysicalPartitioner implements FlatMapFunction<Tuple3<Long,Integer,
     }
 
     @Override
-    public void flatMap(Tuple3<Long, Integer, Double[]> t, Collector<Tuple6<Integer, String, Integer, Long, Integer, Double[]>> collector) throws Exception {
+    public void flatMap(Tuple3<Long, Integer, Double[]> t, Collector<SPTuple> collector) throws Exception {
 
         int numPartitions = 0;
         for (Map.Entry<Integer, Double[]> e : partCentroids.entrySet()){
@@ -43,7 +44,7 @@ public class PhysicalPartitioner implements FlatMapFunction<Tuple3<Long,Integer,
             }
             distances[centroid.getKey()] = temp;
         }
-        collector.collect(new Tuple6<Integer,String,Integer,Long,Integer,Double[]>(computePartitionID(min_idx), "pInner", computePartitionID(min_idx), t.f0, t.f1, t.f2));
+        collector.collect(new SPTuple(computePartitionID(min_idx), "pInner", computePartitionID(min_idx), t.f0, t.f1, t.f2));
 
         for(int i=0; i<distances.length ; i++) {
 //                if(t.f1 == 994 || t.f1 == 830){
@@ -53,7 +54,7 @@ public class PhysicalPartitioner implements FlatMapFunction<Tuple3<Long,Integer,
 //                }
             if (i == min_idx) continue;
             else if ((distances[i] <= min_dist + 2 * dist_thresh) && ((min_idx < i) ^ (min_idx + i) % 2 == 1)) {
-                collector.collect(new Tuple6<Integer, String, Integer, Long, Integer, Double[]>(
+                collector.collect(new SPTuple(
                         computePartitionID(i), "pOuter", computePartitionID(min_idx), t.f0, t.f1, t.f2
                 ));
             }

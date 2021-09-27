@@ -1,3 +1,6 @@
+import CustomDataTypes.FinalOutput;
+import CustomDataTypes.FinalTuple;
+import CustomDataTypes.SPTuple;
 import Operators.AdaptivePartitioner;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
@@ -50,11 +53,11 @@ public class PipelineToTest {
         DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
         env.setParallelism(givenParallelism);
 
-        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.flatMap(new PhysicalPartitioner(0.05, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(0.05, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
 
 //        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
 
-        DataStream<Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>> partitionedData = ppData
+        DataStream<FinalTuple> partitionedData = ppData
                 .keyBy(t-> t.f0)
                 .process(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
 
@@ -83,10 +86,10 @@ public class PipelineToTest {
         }
     }
 
-    private static class Map2ID implements MapFunction<Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>, Tuple2<Integer,Integer>> {
+    private static class Map2ID implements MapFunction<FinalOutput, Tuple2<Integer,Integer>> {
 
         @Override
-        public Tuple2<Integer, Integer> map(Tuple3<Boolean, Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[], Integer>, Tuple10<Integer, String, Integer, String, Integer, Integer, Long, Integer, Double[],Integer>> t) throws Exception {
+        public Tuple2<Integer, Integer> map(FinalOutput t) throws Exception {
             return new Tuple2<>(t.f1.f7, t.f2.f7);
         }
     }

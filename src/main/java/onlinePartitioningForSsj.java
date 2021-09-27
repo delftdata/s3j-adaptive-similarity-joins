@@ -1,3 +1,6 @@
+import CustomDataTypes.FinalOutput;
+import CustomDataTypes.FinalTuple;
+import CustomDataTypes.SPTuple;
 import Operators.AdaptivePartitioner;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
@@ -78,25 +81,25 @@ public class onlinePartitioningForSsj {
 
         env.setParallelism(10);
 
-        DataStream<Tuple6<Integer,String,Integer,Long,Integer,Double[]>> ppData = data.
+        DataStream<SPTuple> ppData = data.
                 flatMap(new PhysicalPartitioner(0.1, SimilarityJoinsUtil.RandomCentroids(centroidsNum, centroidsDim), (env.getMaxParallelism()/env.getParallelism())+1));
 
 
-        SingleOutputStreamOperator<Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>> lpData = ppData
+        SingleOutputStreamOperator<FinalTuple> lpData = ppData
                 .keyBy(t -> t.f0)
                 .process(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
 
         final OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats =
                 new OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>("stats"){};
 
-        SingleOutputStreamOperator<Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>
+        SingleOutputStreamOperator<FinalOutput>
                 unfilteredSelfJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
                 .window(GlobalWindows.create())
                 .trigger(new CustomOnElementTrigger())
                 .process(new SimilarityJoin(0.1, LOG, sideJoins));
 
-        SingleOutputStreamOperator<Tuple3<Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>,Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>
+        SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
