@@ -20,7 +20,6 @@ import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.crypto.Data;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -90,19 +89,31 @@ public class onlinePartitioningForSsj {
     }
 
 
-    static public class WordToEmbeddingMapper implements MapFunction<Tuple3<Long, Integer, String>, Tuple3<Long, Integer, Double[]>>{
+    static public class WordsToEmbeddingMapper implements MapFunction<Tuple3<Long, Integer, String>, Tuple3<Long, Integer, Double[]>>{
 
         HashMap<String, Double[]> wordEmbeddings;
 
-        public WordToEmbeddingMapper(String filename) throws Exception{
+        public WordsToEmbeddingMapper(String filename) throws Exception{
             this.wordEmbeddings = SimilarityJoinsUtil.readEmbeddings(filename);
         }
 
 
         @Override
         public Tuple3<Long, Integer, Double[]> map(Tuple3<Long, Integer, String> t) throws Exception {
-
-            return new Tuple3<>(t.f0, t.f1, wordEmbeddings.get(t.f2));
+            Double[] embedding = new Double[300];
+            Arrays.fill(embedding, 0.0);
+            String[] sentence = t.f2.split(" ");
+            for(String word : sentence){
+                Double[] tmp = wordEmbeddings.get(word);
+                for(int i=0; i < 300; i++){
+                    embedding[i] += tmp[i];
+                }
+            }
+            int sum = sentence.length;
+            for(int i=0; i < 300; i++){
+                embedding[i] = embedding[i]/sum;
+            }
+            return new Tuple3<>(t.f0, t.f1, embedding);
         }
     }
 
@@ -769,7 +780,7 @@ public class onlinePartitioningForSsj {
         }
         else if(pathToFile.equals("zipfian_word_generator")){
             data = streamFactory.createZipfianWordStream("wiki-news-300d-1K.vec", 2.0, 1000, 10L)
-                    .map(new WordToEmbeddingMapper("wiki-news-300d-1K.vec"));
+                    .map(new WordsToEmbeddingMapper("wiki-news-300d-1K.vec"));
             centroidsDim = 300;
         }
         else{
