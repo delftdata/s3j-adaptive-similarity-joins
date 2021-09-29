@@ -43,7 +43,7 @@ public class SimilarityJoin extends ProcessWindowFunction<FinalTuple,
         tuplesIterator.forEachRemaining(tuplesList::addFirst);
 
         FinalTuple newTuple = tuplesList.pollFirst();
-        Double[] newTupleEmbed = newTuple.f8;
+        Double[] newTupleEmbed = newTuple.f9;
 
         for (FinalTuple t : tuplesList ) {
 
@@ -64,8 +64,8 @@ public class SimilarityJoin extends ProcessWindowFunction<FinalTuple,
 
             if (exp){
                 ctx.output(sideJoins, new Tuple3<>(newTuple.f6, newTuple.f2, newTuple.f0));
-                Double[] tEmbed = t.f8;
-                if(newTuple.f7 > t.f7) {
+                Double[] tEmbed = t.f9;
+                if(newTuple.f8 > t.f8) {
                     collector.collect(
                             new FinalOutput(
                                     (SimilarityJoinsUtil.AngularDistance(newTupleEmbed, tEmbed) < dist_thresh),
@@ -85,7 +85,7 @@ public class SimilarityJoin extends ProcessWindowFunction<FinalTuple,
                 }
             }
             else if(newTuple.f1.equals("inner") && t.f1.equals("inner")){
-                if(newTuple.f7 > t.f7) {
+                if(newTuple.f8 > t.f8) {
                     collector.collect(
                             new FinalOutput(
                                     true,

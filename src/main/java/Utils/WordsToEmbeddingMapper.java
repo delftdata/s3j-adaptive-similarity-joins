@@ -2,12 +2,13 @@ package Utils;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Set;
 
-public class WordsToEmbeddingMapper implements MapFunction<Tuple3<Long, Integer, String>, Tuple3<Long, Integer, Double[]>> {
+public class WordsToEmbeddingMapper implements MapFunction<Tuple4<Long, Long, Integer, String>, Tuple4<Long, Long, Integer, Double[]>> {
 
     HashMap<String, Double[]> wordEmbeddings;
 
@@ -17,10 +18,10 @@ public class WordsToEmbeddingMapper implements MapFunction<Tuple3<Long, Integer,
 
 
     @Override
-    public Tuple3<Long, Integer, Double[]> map(Tuple3<Long, Integer, String> t) throws Exception {
+    public Tuple4<Long, Long, Integer, Double[]> map(Tuple4<Long, Long, Integer, String> t) throws Exception {
         Double[] embedding = new Double[300];
         Arrays.fill(embedding, 0.0);
-        String[] sentence = t.f2.split(" ");
+        String[] sentence = t.f3.split(" ");
         Set<String> keys = wordEmbeddings.keySet();
         int sum = 0;
         for(String word : sentence){
@@ -37,6 +38,6 @@ public class WordsToEmbeddingMapper implements MapFunction<Tuple3<Long, Integer,
                 embedding[i] = embedding[i] / sum;
             }
         }
-        return new Tuple3<>(t.f0, t.f1, embedding);
+        return new Tuple4<>(t.f0, t.f1, t.f2, embedding);
     }
 }

@@ -8,6 +8,6 @@ public class LogicalKeySelector implements KeySelector<FinalTuple, Tuple3<Intege
 
     @Override
     public Tuple3<Integer, Integer, Integer> getKey(FinalTuple t) throws Exception {
-        return new Tuple3<Integer, Integer, Integer>(t.f0, t.f9, t.f2);
+        return new Tuple3<Integer, Integer, Integer>(t.f0, t.f10, t.f2);
     }
 }

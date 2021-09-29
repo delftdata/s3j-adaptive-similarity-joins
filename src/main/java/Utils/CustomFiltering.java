@@ -1,6 +1,7 @@
 package Utils;
 
 import CustomDataTypes.FinalOutput;
+import CustomDataTypes.FinalTuple;
 import org.apache.flink.api.java.tuple.Tuple10;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
@@ -11,10 +12,10 @@ public class CustomFiltering extends ProcessFunction<
         FinalOutput,
         FinalOutput> {
 
-    OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats;
+    OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats;
 
     public CustomFiltering(
-            OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats){
+            OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats){
         this.sideStats = sideStats;
     }
 

@@ -37,8 +37,8 @@ public class PipelineToTest {
 
         CollectSink.values.clear();
 
-        final OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats =
-                new OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>("stats"){};
+        final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats =
+                new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
 
         final OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
                 new OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>("logicalCentroids"){};
@@ -50,7 +50,7 @@ public class PipelineToTest {
                 new OutputTag<Tuple3<Long, Integer, Integer>>("sideJoins"){};
 
         env.setParallelism(1);
-        DataStream<Tuple3<Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
+        DataStream<Tuple4<Long, Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
         env.setParallelism(givenParallelism);
 
         DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(0.05, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
@@ -90,7 +90,7 @@ public class PipelineToTest {
 
         @Override
         public Tuple2<Integer, Integer> map(FinalOutput t) throws Exception {
-            return new Tuple2<>(t.f1.f7, t.f2.f7);
+            return new Tuple2<>(t.f1.f8, t.f2.f8);
         }
     }
 

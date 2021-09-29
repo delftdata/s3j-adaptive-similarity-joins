@@ -51,7 +51,7 @@ public class onlinePartitioningForSsj {
 
         String pathToFile = args[0];
 
-        DataStream<Tuple3<Long, Integer, Double[]>> data;
+        DataStream<Tuple4<Long, Long, Integer, Double[]>> data;
         int centroidsDim = 2;
         int centroidsNum = 10;
 
@@ -89,8 +89,8 @@ public class onlinePartitioningForSsj {
                 .keyBy(t -> t.f0)
                 .process(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
 
-        final OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>> sideStats =
-                new OutputTag<Tuple4<Long, Boolean, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>, Tuple10<Integer,String,Integer,String,Integer,Integer,Long,Integer,Double[],Integer>>>("stats"){};
+        final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats =
+                new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
 
         SingleOutputStreamOperator<FinalOutput>
                 unfilteredSelfJoinedStream = lpData
