@@ -4,6 +4,9 @@ import CustomDataTypes.SPTuple;
 import Operators.AdaptivePartitioner;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
+import Statistics.AverageLatency;
+import Statistics.LatencyMeasure;
+import Statistics.OneStepLatencyAverage;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.tuple.*;
@@ -103,6 +106,9 @@ public class onlinePartitioningForSsj {
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
+
+        env.setParallelism(1);
+        selfJoinedStream.map(new OneStepLatencyAverage());
 
         LOG.info(env.getExecutionPlan());
 
