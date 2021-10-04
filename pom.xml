@@ -6,9 +6,9 @@
 
     <groupId>org.example</groupId>
     <artifactId>online_partitioning_for_ssj</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.0</version>
 
-    <name>Flink Quickstart Job</name>
+    <name>Online partitioning for Streaming Similarity Joins</name>
     <url>http://www.myorganization.org</url>
 
     <properties>
@@ -172,6 +172,25 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <excludes>
+                    <exclude>*</exclude>
+                </excludes>
+                <includes>
+                        <include>
+                            log4j.properties
+                        </include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/outputs</directory>
+                <excludes>
+                    <exclude>*</exclude>
+                </excludes>
+            </resource>
+        </resources>
         <plugins>
 
             <!-- Java Compiler -->
@@ -210,8 +229,6 @@
                                 <excludes>
                                     <exclude>org.apache.flink:force-shading</exclude>
                                     <exclude>com.google.code.findbugs:jsr305</exclude>
-                                    <exclude>org.slf4j:*</exclude>
-                                    <exclude>log4j:*</exclude>
                                 </excludes>
                             </artifactSet>
                             <filters>
@@ -228,7 +245,10 @@
                             </filters>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>nl.tudelft.StreamingJob</mainClass>
+                                    <mainClass>onlinePartitioningForSsj</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>reference.conf</resource>
                                 </transformer>
                             </transformers>
                         </configuration>

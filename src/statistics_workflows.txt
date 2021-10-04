@@ -1,0 +1,294 @@
+//*********************************************      STATISTICS SECTION      *******************************************
+
+//        env.setParallelism(1);
+
+
+//        //<-------  Records labeled with partition ids ---------->
+//        ppData.writeAsText(pwd+"/src/main/outputs/PhysicalPartitioning.txt", FileSystem.WriteMode.OVERWRITE);
+//
+//        //<------- Records labeled with logical partition ids ---------->
+//        lpData.writeAsText(pwd+"/src/main/outputs/LogicalPartitioning.txt", FileSystem.WriteMode.OVERWRITE);
+//
+//        //<--------- Logical Partitions and centroids --------->
+//        lpData.getSideOutput(sideLCentroids)
+//                .map(new LogicalPartitionCentroidsList())
+//                .addSink(new SinkFunction<List<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>>() {
+//                    @Override
+//                    public void invoke(List<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> value, Context context) throws Exception {
+//                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/LogicalPartitionCentroids.txt");
+//                        myWriter.write(value.toString());
+//                        myWriter.close();
+//                    }
+//                });
+//
+//        //<-------  Capture the size of physical partitions --------->
+//        ppData
+//                .map(t -> new Tuple2<>(t.f0, 1L))
+//                .returns(TypeInformation.of((new TypeHint<Tuple2<Integer, Long>>() {
+//                })))
+//                .keyBy(t -> t.f0)
+//                .sum(1)
+//                .map(new OverallPartitionSizeList())
+//                .addSink(new SinkFunction<List<Tuple2<String, String>>>() {
+//                    @Override
+//                    public void invoke(List<Tuple2<String, String>> value, Context context) throws Exception {
+//                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/physicalPartitionSizes.txt");
+//                        myWriter.write(value.toString());
+//                        myWriter.close();
+//                    }
+//                });
+//
+//
+//
+//        //<-------  Capture the size of physical partitions per window --------->
+//        OutputTag<Tuple3<Long, Integer, Long>> latePP = new OutputTag<Tuple3<Long, Integer, Long>>("latePP"){};
+//        SingleOutputStreamOperator<Tuple3<Long, Integer, Long>> incRatePerWindow = ppData
+//                .map(t -> new Tuple3<>(t.f3, t.f0, 1L))
+//                .returns(TypeInformation.of((new TypeHint<Tuple3<Long, Integer, Long>>() {
+//                })))
+//                .keyBy(t -> t.f1)
+//                .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                .sideOutputLateData(latePP)
+//                .sum(2);
+//
+//        incRatePerWindow.getSideOutput(latePP).print();
+//
+//        incRatePerWindow.map(new WindowedOverallPartitionSizeList()).writeAsText(pwd + "/src/main/outputs/windowedPhysicalPartitionSizes.txt", FileSystem.WriteMode.OVERWRITE);
+//
+//
+//
+//        //<-------  Capture the number of inner and outer records in each physical partition --------->
+//        ppData
+//                .map(t -> new Tuple3<>(t.f0, t.f1, 1L))
+//                .returns(TypeInformation.of(new TypeHint<Tuple3<Integer, String, Long>>() {
+//                }))
+//                .keyBy(new PhyStatsRtypeKeySelector())
+//                .sum(2)
+//                .map(new PPRecTypeList())
+//                .addSink(new SinkFunction<List<Tuple3<String, String, String>>>() {
+//                    @Override
+//                    public void invoke(List<Tuple3<String, String, String>> value, Context context) throws Exception {
+//                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/ppRecordTypes.txt");
+//                        myWriter.write(value.toString());
+//                        myWriter.close();
+//                    }
+//                });
+//
+//
+//
+//        //<-------  Capture the number of true and false comparisons in each logical partition --------->
+//        selfJoinedStream.getSideOutput(sideStats)
+//                .map(t -> new Tuple4<>(t.f2.f2, t.f2.f0, t.f1, 1L))
+//                .returns((TypeInformation.of(new TypeHint<Tuple4<Integer, Integer, Boolean, Long>>() {
+//                })))
+//                .keyBy(new StatsKeySelector())
+//                .sum(3)
+//                .map(new LPMeasurePerformance())
+//                .addSink(new SinkFunction<List<Tuple4<String, String, String, String>>>() {
+//                    @Override
+//                    public void invoke(List<Tuple4<String, String, String, String>> value, Context context) throws Exception {
+//                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/comparisonsByLogicalPart.txt");
+//                        myWriter.write(value.toString());
+//                        myWriter.close();
+//                    }
+//                });
+//
+//
+//
+//        //<-------  Capture the number of true and false comparisons in each physical partition --------->
+//        selfJoinedStream.getSideOutput(sideStats)
+//                .map(t -> new Tuple3<>(t.f2.f2, t.f1, 1L))
+//                .returns(TypeInformation.of(new TypeHint<Tuple3<Integer, Boolean, Long>>() {
+//                }))
+//                .keyBy(new PhyStatsKeySelector())
+//                .sum(2)
+//                .map(new PPMeasurePerformance())
+//                .addSink(new SinkFunction<List<Tuple3<String, String, String>>>() {
+//                    @Override
+//                    public void invoke(List<Tuple3<String, String, String>> value, Context context) throws Exception {
+//                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/comparisonsByPhysicalPart.txt");
+//                        myWriter.write(value.toString());
+//                        myWriter.close();
+//                    }
+//                });
+//
+//
+//
+//        //<-------  Capture the number of true and false comparisons between physical partitions --------->
+//        selfJoinedStream.getSideOutput(sideStats)
+//                .flatMap(new BetweenPhyPartMapper())
+//                .keyBy(new BetweenPhyPartKeySelector())
+//                .sum(3)
+//                .map(new BetweenPhyPartMatchesList())
+//                .addSink(new SinkFunction<List<Tuple4<String, String, String, String>>>() {
+//                    @Override
+//                    public void invoke(List<Tuple4<String, String, String, String>> value, Context context) throws Exception {
+//                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/matchesBetweenPhysicalPart.txt");
+//                        myWriter.write(value.toString());
+//                        myWriter.close();
+//                    }
+//                });
+//
+//
+//        //<------- Capture the number of true and false comparisons between logical partitions --------->
+//        selfJoinedStream.getSideOutput(sideStats)
+//                .flatMap(new BetweenLogicalMapper())
+//                .keyBy(new BetweenLogicalPartKeySelector())
+//                .sum(4)
+//                .map(new BetweenLogicalPartMatchesList())
+//                .addSink(new SinkFunction<List<Tuple5<String, String, String, String, String>>>() {
+//                    @Override
+//                    public void invoke(List<Tuple5<String, String, String, String, String>> value, Context context) throws Exception {
+//                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/matchesBetweenLogicalPart.txt");
+//                        myWriter.write(value.toString());
+//                        myWriter.close();
+//                    }
+//                });
+//
+//
+//
+//        //<-------- Number of logical partitions within each physical ---------->
+//        lpData
+//                .map(t -> new Tuple2<Integer,Integer>(t.f2, t.f0))
+//                .returns(TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {}))
+//                .map(new NumOfLogicalPartMapper())
+//                .addSink(new SinkFunction<List<Tuple2<Integer, Integer>>>() {
+//                    @Override
+//                    public void invoke(List<Tuple2<Integer, Integer>> value, Context context) throws Exception {
+//                        FileWriter myWriter = new FileWriter(pwd+"/src/main/outputs/NumOfLogicalPartPerPhysical.txt");
+//                        myWriter.write(value.toString());
+//                        myWriter.close();
+//                    }
+//                });
+//
+//
+//        //<------- Number of logical partitions within each physical per window ----->
+//        OutputTag<Tuple3<Long, Integer, Integer>> lateLP = new OutputTag<Tuple3<Long, Integer, Integer>>("lateLP"){};
+//        SingleOutputStreamOperator<Tuple3<Long, Integer, Integer>> wd = lpData.getSideOutput(sideLP)
+//                .keyBy(t -> t.f1)
+//                .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                .sideOutputLateData(lateLP)
+//                .max(1);
+//
+//        wd.getSideOutput(lateLP).print();
+//
+//        wd.map(new windowedNumOfLogicalPartMapper())
+//                .writeAsText(pwd+"/src/main/outputs/windowedNumOfLogicalPartPerPhysical.txt", FileSystem.WriteMode.OVERWRITE);
+//
+//
+//        //<-------- Record Types in Logical Partitions per window -------->
+//        OutputTag<Tuple5<Long, Integer, Integer, String, Long>> lateRTLP = new OutputTag<Tuple5<Long, Integer, Integer, String, Long>>("lateRTLP"){};
+//        SingleOutputStreamOperator<Tuple5<Long, Integer, Integer, String, Long>> rtlp =
+//                lpData
+//                .map(t -> new Tuple5<>(t.f6, t.f2, t.f0, t.f1, 1L))
+//                .returns(TypeInformation.of(new TypeHint<Tuple5<Long, Integer, Integer, String, Long>>() {
+//                }))
+//                .keyBy(new RecordTypeLogicalPartitionSelector())
+//                .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                .sideOutputLateData(lateRTLP)
+//                .sum(4);
+//
+//        rtlp.getSideOutput(lateRTLP).print();
+//        rtlp.map(new RecordTypeLPMapper()).map(new RecordTypeLPList()).writeAsText(pwd+"/src/main/outputs/LogicalPartitionSizePerWindow.txt", FileSystem.WriteMode.OVERWRITE);
+
+//
+//        //<--------- Cost calculation per logical partition ----------->
+//
+//        SingleOutputStreamOperator<Tuple4<Long, Integer, Integer, Long>> listCosts =
+//            rtlp.map(new RecordTypeLPMapper())
+//                .keyBy(t -> t.f1)
+//                .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                .process(new Statistics.LLCostCalculator());
+//
+//        listCosts.writeAsText(pwd+"/src/main/outputs/LogicalPartitionCostPerWindow.txt", FileSystem.WriteMode.OVERWRITE);
+//
+//
+//        //<----------- Mapping cost for logical level ----------->
+//        DataStream<Tuple3<Long, Integer, Long>> mappingCostLL = wd.join(incRatePerWindow)
+//                .where(t -> t.f1)
+//                .equalTo(t -> t.f1)
+//                .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                .apply(new JoinFunction<Tuple3<Long, Integer, Integer>, Tuple3<Long, Integer, Long>, Tuple3<Long, Integer, Long>>() {
+//                    @Override
+//                    public Tuple3<Long, Integer, Long> join(Tuple3<Long, Integer, Integer> rateTuple, Tuple3<Long, Integer, Long> llsizeTuple) throws Exception {
+//                        Long cost = rateTuple.f2 * llsizeTuple.f2;
+//                        return new Tuple3<Long, Integer, Long>(rateTuple.f0, rateTuple.f1, cost);
+//                    }
+//                });
+//
+////        mappingCostLL.print();
+//
+//        // Mapping Cost removed since the join computations are decoupled from the group making.
+//        //<----------- Total cost per machine -------->
+//        DataStream<Tuple3<Long, Integer, Long>> totalCosts =
+//                listCosts
+//                        .map(t -> new Tuple3<>(t.f0, t.f1, t.f3))
+//                        .returns(TypeInformation.of(new TypeHint<Tuple3<Long, Integer, Long>>() {
+//                        }))
+//                        .keyBy(t -> t.f1)
+//                        .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                        .sum(2)
+//                        .join(mappingCostLL)
+//                        .where(t -> t.f1)
+//                        .equalTo(t -> t.f1)
+//                        .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                        .apply(new JoinFunction<Tuple3<Long, Integer, Long>, Tuple3<Long, Integer, Long>, Tuple3<Long, Integer, Long>>() {
+//                            @Override
+//                            public Tuple3<Long, Integer, Long> join(Tuple3<Long, Integer, Long> joinCost, Tuple3<Long, Integer, Long> mappingCost) throws Exception {
+//                                Long cost = joinCost.f2;
+//                                return new Tuple3<>(joinCost.f0, joinCost.f1, cost);
+//                            }
+//                        });
+//
+//        DataStream<List<Tuple3<Long, Integer, Long>>> totalCostsList =
+//                totalCosts
+//                        .windowAll(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                        .process(new TotalCostToList(10, 128));
+//
+//        totalCostsList.writeAsText(pwd+"/src/main/outputs/windowedTotalCostList.txt", FileSystem.WriteMode.OVERWRITE);
+//
+//        totalCosts.writeAsText(pwd+"/src/main/outputs/windowedTotalCostPerMachine.txt", FileSystem.WriteMode.OVERWRITE);
+//
+//
+//
+//        //<------------ Find overloaded and underloaded nodes ----------->
+//        totalCostsList
+//                .map(new Statistics.FindCandidateNodes())
+//                .print();
+
+//          CHECK WITH MARIOS
+
+
+
+//        //<------- comparisons by logical partition per window -------->
+//        selfJoinedStream.getSideOutput(sideStats)
+//                .map(t -> new Tuple4<>(t.f0, t.f2.f2, t.f2.f0, 1L))
+//                .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Integer, Integer, Long>>() {
+//                }))
+//                .keyBy(t -> new Tuple2<Integer,Integer>(t.f1, t.f2))
+//                .window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+//                .sum(3);
+
+//        //<------- comparisons by physical partition per window --------->
+//        OutputTag<Tuple3<Long, Integer, Long>> lateJoin = new OutputTag<Tuple3<Long, Integer, Long>>("lateJoin"){};
+//        SingleOutputStreamOperator<Tuple3<Long,Integer,Long>> check =
+//        unfilteredSelfJoinedStream.getSideOutput(sideJoins)
+//                .assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple3<Long, Integer, Integer>>() {
+//                    @Override
+//                    public long extractAscendingTimestamp(Tuple3<Long, Integer, Integer> t) {
+//                        return t.f0;
+//                    }
+//                })
+//                .map(t -> new Tuple3<Long, Integer, Long>(t.f0, t.f1, 1L))
+//                .returns(TypeInformation.of(new TypeHint<Tuple3<Long, Integer, Long>>() {
+//                }))
+//                .keyBy(t -> t.f1)
+//                .window(TumblingEventTimeWindows.of(Time.seconds(1)))
+//                .sideOutputLateData(lateJoin)
+//                .sum(2);
+
+//        check.getSideOutput(lateJoin).print();
+
+//        check
+//                .map(new windowedComparisonsPerPhyPartMapper())
+//                .writeAsText(pwd+"/src/main/outputs/windowedComparisonsPerPhysical.txt", FileSystem.WriteMode.OVERWRITE);

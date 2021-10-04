@@ -37,25 +37,26 @@ public class GlobalWindowCorrectnessTest {
     public void testJoinResults() throws Exception{
 
         PipelineToTest pipeline = new PipelineToTest();
-        List<Tuple2<Integer,Integer>> results = pipeline.run(10, "1KwordStream_v2.txt");
+        List<Tuple2<Integer,Integer>> results = pipeline.run(10 , "src/test/resources/1K_2D_Array_Stream_v2.txt", LOG);
 
 //        System.out.println(CollectSink.values.toString());
 //        System.out.println(getGroundTruth("wordStreamGroundTruth.txt"));
-        for(Tuple2<Integer,Integer> v : getGroundTruth("1KwordStream_v2GroundTruth.txt")){
+        ArrayList<Tuple2<Integer,Integer>> gd = getGroundTruth("1K_2D_Array_Stream_v2GroundTruth0_05.txt");
+        for(Tuple2<Integer,Integer> v : gd){
             boolean cont = results.contains(v);
             if(!cont) {
                 System.out.format("(%d,%d): %b\n", v.f0, v.f1, cont);
             }
         }
-        assertTrue(results.containsAll(getGroundTruth("1KwordStream_v2GroundTruth.txt")));
-        assertTrue(getGroundTruth("1KwordStream_v2GroundTruth.txt").containsAll(results));
+        assertTrue(results.containsAll(getGroundTruth("1K_2D_Array_Stream_v2GroundTruth0_05.txt")));
+        assertTrue(getGroundTruth("1K_2D_Array_Stream_v2GroundTruth0_05.txt").containsAll(results));
 
     }
 
     private static ArrayList<Tuple2<Integer,Integer>> getGroundTruth(String filename) throws Exception{
         ArrayList<Tuple2<Integer,Integer>> groudTruth = new ArrayList<>();
 
-        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+ filename), Charset.defaultCharset())) {
+        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/test/resources/"+ filename), Charset.defaultCharset())) {
             lines.map(l -> l.split(","))
                     .forEach(l -> groudTruth.add(new Tuple2<Integer,Integer>(Integer.parseInt(l[0]),Integer.parseInt(l[1]))));
         }
