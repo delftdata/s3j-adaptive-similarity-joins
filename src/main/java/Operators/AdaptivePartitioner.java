@@ -48,6 +48,8 @@ public class AdaptivePartitioner extends
         this.sideLCentroids = sideLCentroids;
     }
 
+
+    // Initialize state
     @Override
     public void open(Configuration config){
         ListStateDescriptor<SPTuple> phyOutersDesc =
@@ -81,6 +83,8 @@ public class AdaptivePartitioner extends
 
         boolean isOutlier = false;
 
+        // Tuples belonging to the outer partition of the machine can only be used for outer groups.
+        // For a tuple to belong to an outer group, it must satisfy a distance criterion.
         if (t.f1.equals("pOuter")) {
             for (Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>,Integer>> centroid : mappingGroupsToNodes.entries()) {
                 Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2);
@@ -93,7 +97,11 @@ public class AdaptivePartitioner extends
             }
             phyOuters.add(t);
         }
+        // Tuples belonging to the inner partition of the machine can only be used for outer groups.
+        // For a tuple to belong to an outer group, it must satisfy a distance criterion.
         else if (t.f1.equals("pInner")) {
+            //if there are no groups created yet, create the first pair of outer-inner groups
+            // and check if there are any outer tuples that might need to be included to the outer group.
             if (part_num == 0) {
                 mappingGroupsToNodes.put(1, new Tuple2<>(new Tuple3<Long, Integer, Double[]>(t.f3, t.f5, emb), t.f0));
                 collector.collect(new FinalTuple(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(1).f1));
@@ -106,6 +114,11 @@ public class AdaptivePartitioner extends
                     }
                 }
             } else {
+                // if there are groups, calculate the distance of the incoming tuple t from their centroids.
+                // Based on these distances decide whether there is an existing group that can contain t, whether
+                // a new pair of groups with t as its centroid must be created, or t must be an outlier.
+                // Based on the calculated distances and a routing criterion, we also decide to which groups t should be
+                // included as an outer.
                 int inner;
                 for (Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> centroid : mappingGroupsToNodes.entries()) {
                     Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2);
@@ -165,9 +178,10 @@ public class AdaptivePartitioner extends
                 }
             }
         }
-
+        // side output to get the tuples emitted by the operator (for statistics)
         context.output(sideLP, new Tuple3<Long, Integer, Integer>(t.f3, t.f0, Iterables.size(mappingGroupsToNodes.keys())));
 
+        //side output to get the group centroids
         HashMap<Integer, Tuple3<Long,Integer,Double[]>> partitions = new HashMap<>();
         for(Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>,Integer>> centroid : mappingGroupsToNodes.entries()){
             partitions.put(centroid.getKey(), centroid.getValue().f0);

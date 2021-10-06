@@ -34,6 +34,8 @@ public class PhysicalPartitioner implements FlatMapFunction<Tuple4<Long, Long,In
         }
 //            LOG.info(partCentroids.entrySet().toString());
 
+        // For each tuple calculate the distances from all the given centroids.
+        // Pick the closest one, and assign the tuple to its inner partition.
         Double[] distances = new Double[numPartitions];
         int min_idx = 0;
         double min_dist = 1000000000.0;
@@ -47,6 +49,8 @@ public class PhysicalPartitioner implements FlatMapFunction<Tuple4<Long, Long,In
         }
         collector.collect(new SPTuple(computePartitionID(min_idx), "pInner", computePartitionID(min_idx), t.f0, t.f1, t.f2, t.f3));
 
+        // Assign tuple to the outer partitions of the centroids that satisfy the distance criterion
+        // and the routing criterion.
         for(int i=0; i<distances.length ; i++) {
             if (i == min_idx) continue;
             else if ((distances[i] <= min_dist + 2 * dist_thresh) && ((min_idx < i) ^ (min_idx + i) % 2 == 1)) {
