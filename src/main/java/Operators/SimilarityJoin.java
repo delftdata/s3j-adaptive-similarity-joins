@@ -3,26 +3,29 @@ package Operators;
 import CustomDataTypes.FinalOutput;
 import CustomDataTypes.FinalTuple;
 import Utils.SimilarityJoinsUtil;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.state.MapState;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
-import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Collector;
 
-import java.util.Iterator;
-import java.util.LinkedList;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 
 
-public class SimilarityJoin extends ProcessWindowFunction<FinalTuple,
-        FinalOutput,
-        Tuple3<Integer,Integer,Integer>,
-        GlobalWindow> {
+public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput> {
 
     Double dist_thresh;
     private Logger LOG;
     OutputTag<Tuple3<Long, Integer, Integer>> sideJoins;
+    private MapState<String, List<FinalTuple>> joinState;
 
     public SimilarityJoin(Double dist_thresh, Logger LOG, OutputTag<Tuple3<Long, Integer, Integer>> sideJoins)throws Exception{
         this.dist_thresh = dist_thresh;
@@ -30,80 +33,122 @@ public class SimilarityJoin extends ProcessWindowFunction<FinalTuple,
         this.sideJoins = sideJoins;
     }
 
+    @Override
+    public void open(Configuration parameters) throws Exception {
+        MapStateDescriptor<String, List<FinalTuple>> joinStateDesc =
+                new MapStateDescriptor<String, List<FinalTuple>>(
+                        "joinState",
+                        TypeInformation.of(new TypeHint<String>() {}),
+                        TypeInformation.of(new TypeHint<List<FinalTuple>>() {
+                        })
+                );
+
+        joinState = getRuntimeContext().getMapState(joinStateDesc);
+
+    }
+
 
     @Override
-    public void process(Tuple3<Integer,Integer,Integer> key,
-                        Context ctx,
-                        Iterable<FinalTuple> tuples,
+    public void flatMap(FinalTuple incoming,
                         Collector<FinalOutput> collector)
             throws Exception {
 
-        Iterator<FinalTuple> tuplesIterator = tuples.iterator();
-        LinkedList<FinalTuple> tuplesList = new LinkedList<>();
-        tuplesIterator.forEachRemaining(tuplesList::addFirst);
 
-        FinalTuple newTuple = tuplesList.pollFirst();
-        Double[] newTupleEmbed = newTuple.f9;
+        Double[] incomingEmbed = incoming.f9;
 
-        for (FinalTuple t : tuplesList ) {
+        insertToState(incoming);
 
-//            LOG.info(newTuple.toString()+", "+t.toString());
-            boolean exp = (
-                    (newTuple.f1.equals("outer") && t.f1.equals("inner")) ||
-                            (newTuple.f1.equals("outlier") && t.f1.equals("outlier")) ||
-                            (newTuple.f1.equals("outlier") && t.f1.equals("inner")) ||
-                            (newTuple.f1.equals("inner") && t.f1.equals("outlier")) ||
-                            (newTuple.f1.equals("inner") && t.f1.equals("outer")) ||
-                            (newTuple.f1.equals("outlier") && t.f1.equals("outer")) ||
-                            (newTuple.f1.equals("outer") && t.f1.equals("outlier")) ||
-//                            (newTuple.f1.equals("outlier") && t.f1.equals("outer") && !t.f7.equals(newTuple.f7)  && (newTuple.f0 < t.f5 || t.f3.equals("pOuter"))) ||
-//                            (newTuple.f1.equals("outer") && t.f1.equals("outlier") && !t.f7.equals(newTuple.f7) && (newTuple.f5 > t.f0 || newTuple.f3.equals("pOuter"))) ||
-                            (newTuple.f1.equals("ind_outer") && t.f1.equals("inner")) ||
-                            (newTuple.f1.equals("inner") && t.f1.equals("ind_outer"))
-            );
+        List<FinalTuple> itemsToCompare = new ArrayList<>();
+        List<FinalTuple> itemsToEmit = new ArrayList<>();
 
-            if (exp){
-                ctx.output(sideJoins, new Tuple3<>(newTuple.f6, newTuple.f2, newTuple.f0));
-                Double[] tEmbed = t.f9;
-                if(newTuple.f8 > t.f8) {
-                    collector.collect(
-                            new FinalOutput(
-                                    (SimilarityJoinsUtil.AngularDistance(newTupleEmbed, tEmbed) < dist_thresh),
-                                    newTuple,
-                                    t
-                            )
-                    );
-                }
-                else{
-                    collector.collect(
-                            new FinalOutput(
-                                    (SimilarityJoinsUtil.AngularDistance(newTupleEmbed, tEmbed) < dist_thresh),
-                                    t,
-                                    newTuple
-                            )
-                    );
-                }
+        if(!joinState.isEmpty()) {
+            if (incoming.f1.equals("inner")) {
+                itemsToCompare.addAll(joinState.get("outer"));
+                itemsToCompare.addAll(joinState.get("outlier"));
+                itemsToEmit.addAll(joinState.get("inner"));
+            } else if (incoming.f1.equals("outlier")) {
+                itemsToCompare.addAll(joinState.get("inner"));
+                itemsToCompare.addAll(joinState.get("outer"));
+                itemsToCompare.addAll(joinState.get("outlier"));
+            } else {
+                itemsToCompare.addAll(joinState.get("inner"));
+                itemsToCompare.addAll(joinState.get("outlier"));
             }
-            else if(newTuple.f1.equals("inner") && t.f1.equals("inner")){
-                if(newTuple.f8 > t.f8) {
-                    collector.collect(
-                            new FinalOutput(
-                                    true,
-                                    newTuple,
-                                    t
-                            )
-                    );
-                }
-                else{
-                    collector.collect(
-                            new FinalOutput(
-                                    true,
-                                    t,
-                                    newTuple
-                            )
-                    );
-                }
+        }
+
+        for (FinalTuple t : itemsToCompare) {
+
+//            LOG.warn(incoming.toString()+", "+t.toString());
+
+            if(incoming.f8 == t.f8){
+                continue;
+            }
+
+            Double[] tEmbed = t.f9;
+
+            if (incoming.f8 > t.f8) {
+                collector.collect(
+                        new FinalOutput(
+                                (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
+                                incoming,
+                                t
+                        )
+                );
+            } else {
+                collector.collect(
+                        new FinalOutput(
+                                (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
+                                t,
+                                incoming
+                        )
+                );
+            }
+        }
+
+        for(FinalTuple t : itemsToEmit){
+//                LOG.warn(incoming.toString()+", "+t.toString());
+            if(incoming.f8 == t.f8){
+                continue;
+            }
+            if (incoming.f8 > t.f8) {
+                collector.collect(
+                        new FinalOutput(
+                                true,
+                                incoming,
+                                t
+                        )
+                );
+            } else {
+                collector.collect(
+                        new FinalOutput(
+                                true,
+                                t,
+                                incoming
+                        )
+                );
             }
         }
     }
+
+
+
+    private void insertToState(FinalTuple incoming) throws Exception {
+
+        if(joinState.isEmpty()){
+            List<FinalTuple> tmpList = new ArrayList<>();
+            tmpList.add(incoming);
+            joinState.put("inner", new ArrayList<>());
+            joinState.put("outer", new ArrayList<>());
+            joinState.put("outlier", new ArrayList<>());
+            joinState.put(incoming.f1, tmpList);
+        }
+        else{
+            List<FinalTuple> tmpList;
+            tmpList = joinState.get(incoming.f1);
+            tmpList.add(incoming);
+            joinState.put(incoming.f1, tmpList);
+        }
+
+    }
+
 }

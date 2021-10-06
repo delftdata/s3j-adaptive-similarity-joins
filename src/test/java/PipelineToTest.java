@@ -53,19 +53,17 @@ public class PipelineToTest {
         DataStream<Tuple4<Long, Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
         env.setParallelism(givenParallelism);
 
-        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(0.05, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(0.1, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
 
 //        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
 
         DataStream<FinalTuple> partitionedData = ppData
                 .keyBy(t-> t.f0)
-                .process(new AdaptivePartitioner(0.05, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
+                .process(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
 
         partitionedData
                 .keyBy(new LogicalKeySelector())
-                .window(GlobalWindows.create())
-                .trigger(new CustomOnElementTrigger())
-                .process(new SimilarityJoin(0.05, LOG, sideJoins))
+                .flatMap(new SimilarityJoin(0.1, LOG, sideJoins))
                 .process(new CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());

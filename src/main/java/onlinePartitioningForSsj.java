@@ -121,9 +121,7 @@ public class onlinePartitioningForSsj {
         SingleOutputStreamOperator<FinalOutput>
                 unfilteredSelfJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
-                .window(GlobalWindows.create())
-                .trigger(new CustomOnElementTrigger())
-                .process(new SimilarityJoin(0.1, LOG, sideJoins));
+                .flatMap(new SimilarityJoin(0.1, LOG, sideJoins));
 
 
         // Filter the pairs that match.
@@ -134,8 +132,8 @@ public class onlinePartitioningForSsj {
         // ========================================================================================================== //
 
         // Measure the average latency per tuple
-        env.setParallelism(1);
-        selfJoinedStream.map(new OneStepLatencyAverage());
+//        env.setParallelism(1);
+//        selfJoinedStream.map(new OneStepLatencyAverage());
 
         LOG.info(env.getExecutionPlan());
 
