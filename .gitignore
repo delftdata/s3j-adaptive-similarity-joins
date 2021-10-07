@@ -4,3 +4,6 @@
 src/main/outputs/*
 /src/main/resources/logCorrectnessTest.out
 .DS_Store
+libs/*
+!.keep
+.idea
