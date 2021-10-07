@@ -17,6 +17,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.util.OutputTag;
+import org.kohsuke.args4j.CmdLineParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +34,11 @@ public class onlinePartitioningForSsj {
 
 
     public static void main(String[] args) throws Exception{
+        // Arg parsing
+        Options options = new Options();
+        CmdLineParser parser = new CmdLineParser(options);
+        parser.parseArgument(args);
+
         // Excecution environment details //
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -58,41 +64,50 @@ public class onlinePartitioningForSsj {
         // Set parallelism to 1 while ingesting the source.
         env.setParallelism(1);
 
-        // Get the name/type of the source from the passed arguments
-        String pathToFile = args[0];
-
         // ========================================================================================================== //
 
-        // Create the input stream from the source. Set the properties for the centroids. //
-        DataStream<Tuple4<Long, Long, Integer, Double[]>> data;
-        int centroidsDim = 2;
-        int centroidsNum = 10;
+        // Create the input stream from the source. Set the properties for the centroids.
+        DataStream<Tuple4<Long, Long, Integer, Double[]>> firstStream = streamFactory.createDataStream(options.getFirstStream());
+        int centroidsDim = options.getCentroidsDim();
+        int centroidsNum = options.getCentroidsNum();
 
-        if (pathToFile.equals("gaussian_2D_generator")){
-            data = streamFactory.createGaussian2DStream(42, 1000, 10L);
+        if (options.hasSecondStream()) {
+            DataStream<Tuple4<Long, Long, Integer, Double[]>> secondStream = streamFactory.createDataStream(options.getSecondStream());
+            // Handle 2 stream case here
+            HashMap<Integer, Double[]> centroids = SimilarityJoinsUtil.RandomCentroids(centroidsNum, centroidsDim);
+
+            DataStream<SPTuple> ppData1 = firstStream.
+                    flatMap(new PhysicalPartitioner(0.1, centroids, (env.getMaxParallelism()/env.getParallelism())+1));
+
+            DataStream<SPTuple> ppData2 = secondStream.
+                    flatMap(new PhysicalPartitioner(0.1, centroids, (env.getMaxParallelism()/env.getParallelism())+1));
+
+            SingleOutputStreamOperator<FinalTuple> lpData = ppData1
+                    .keyBy(t -> t.f0)
+                    .connect(ppData2.keyBy(t -> t.f0))
+                    .process(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
+
+            final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats =
+                    new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
+
+            SingleOutputStreamOperator<FinalOutput>
+                    unfilteredSelfJoinedStream = lpData
+                    .keyBy(new LogicalKeySelector())
+                    .flatMap(new SimilarityJoin(0.1, LOG, sideJoins, selfJoin));
+
+            SingleOutputStreamOperator<FinalOutput>
+                    selfJoinedStream = unfilteredSelfJoinedStream
+                    .process(new CustomFiltering(sideStats));
+        } else {
+            // Handle 1 stream case here
         }
-        else if(pathToFile.equals("skewed_gaussian_2D_generator")){
-            data = streamFactory.createSkewedGaussian2DStream(42, 1000, 10L);
-        }
-        else if(pathToFile.equals("uniform_2D_generator")){
-            data = streamFactory.createUniform2DStream(42, 1000, 10L);
-        }
-        else if(pathToFile.equals("pareto_2D_generator")){
-            data = streamFactory.createPareto2DStream(1.0, 10.0 , 1000, 10L);
-        }
-        else if(pathToFile.equals("zipfian_word_generator")){
-            data = streamFactory.createZipfianWordStream("wiki-news-300d-1K.vec", 2.0, 1000, 10L)
-                    .map(new WordsToEmbeddingMapper("wiki-news-300d-1K.vec"));
-            centroidsDim = 300;
-        }
-        else{
-            data = streamFactory.create2DArrayStream(pathToFile);
-        }
+
+
 
         // ========================================================================================================== //
 
         // Write the input stream in a txt file for debugging reasons. Not part of the final pipeline.
-        data.writeAsText(pwd+"/src/main/resources/streamed_dataset.txt", FileSystem.WriteMode.OVERWRITE);
+        firstStream.writeAsText(pwd+"/src/main/resources/streamed_dataset.txt", FileSystem.WriteMode.OVERWRITE);
 
         // Main pipeline - Only for self joins. //
 

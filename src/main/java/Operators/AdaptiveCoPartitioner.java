@@ -14,7 +14,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.util.Collector;
 
 import java.util.HashMap;
@@ -24,8 +24,10 @@ import java.util.PriorityQueue;
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 
-public class AdaptivePartitioner extends
-        ProcessFunction<SPTuple,
+public class AdaptiveCoPartitioner extends
+        KeyedCoProcessFunction<Integer,
+                SPTuple,
+                SPTuple,
                 FinalTuple> {
 
     Double dist_thresh;
@@ -36,7 +38,7 @@ public class AdaptivePartitioner extends
     ListState<SPTuple> phyOuters;
     MapState<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> mappingGroupsToNodes;
 
-    public AdaptivePartitioner(Double dist_thresh,
+    public AdaptiveCoPartitioner(Double dist_thresh,
                                int keyRange,
                                Logger LOG,
                                OutputTag<Tuple3<Long, Integer, Integer>> sideLP,
@@ -49,8 +51,6 @@ public class AdaptivePartitioner extends
         this.sideLCentroids = sideLCentroids;
     }
 
-
-    // Initialize state
     @Override
     public void open(Configuration config){
         ListStateDescriptor<SPTuple> phyOutersDesc =
@@ -71,20 +71,35 @@ public class AdaptivePartitioner extends
 
 
     @Override
-    public void processElement(SPTuple t,
-                               Context context,
-                               Collector<FinalTuple> collector)
+    public void processElement1(SPTuple t,
+                                Context context,
+                                Collector<FinalTuple> collector)
             throws Exception {
-        StreamProcessing.AssignGroup(t, collector, mappingGroupsToNodes, dist_thresh, phyOuters, keyRange, "single");
+        StreamProcessing.AssignGroup(t, collector, mappingGroupsToNodes, dist_thresh, phyOuters, keyRange, "left");
 
-        // side output to get the tuples emitted by the operator (for statistics)
         context.output(sideLP, new Tuple3<Long, Integer, Integer>(t.f3, t.f0, Iterables.size(mappingGroupsToNodes.keys())));
 
-        //side output to get the group centroids
         HashMap<Integer, Tuple3<Long,Integer,Double[]>> partitions = new HashMap<>();
         for(Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>,Integer>> centroid : mappingGroupsToNodes.entries()){
             partitions.put(centroid.getKey(), centroid.getValue().f0);
         }
         context.output(sideLCentroids, new Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>(t.f0, partitions));
     }
+
+    @Override
+    public void processElement2(SPTuple t,
+                                Context context,
+                                Collector<FinalTuple> collector)
+            throws Exception {
+        StreamProcessing.AssignGroup(t, collector, mappingGroupsToNodes, dist_thresh, phyOuters, keyRange, "right");
+
+        context.output(sideLP, new Tuple3<Long, Integer, Integer>(t.f3, t.f0, Iterables.size(mappingGroupsToNodes.keys())));
+
+        HashMap<Integer, Tuple3<Long,Integer,Double[]>> partitions = new HashMap<>();
+        for(Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>,Integer>> centroid : mappingGroupsToNodes.entries()){
+            partitions.put(centroid.getKey(), centroid.getValue().f0);
+        }
+        context.output(sideLCentroids, new Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>(t.f0, partitions));
+    }
+
 }

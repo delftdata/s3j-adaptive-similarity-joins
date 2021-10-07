@@ -123,4 +123,27 @@ public class StreamFactory {
         return null;
     }
 
+
+    public DataStream<Tuple4<Long,Long,Integer,Double[]>> createDataStream(String source) throws Exception {
+        DataStream<Tuple4<Long, Long, Integer, Double[]>> dataStream;
+
+        switch(source) {
+            case "gaussian_2D_generator":           dataStream = createGaussian2DStream(42, 1000, 10L);
+                break;
+            case "skewed_gaussian_2D_generator":    dataStream = createSkewedGaussian2DStream(42, 1000, 10L);
+                break;
+            case "uniform_2D_generator":            dataStream = createUniform2DStream(42, 1000, 10L);
+                break;
+            case "pareto_2D_generator":             dataStream = createPareto2DStream(1.0, 10.0 , 1000, 10L);
+                break;
+            case "zipfian_word_generator":          dataStream = createZipfianWordStream("wiki-news-300d-1K.vec", 2.0, 1000, 10L)
+                    .map(new WordsToEmbeddingMapper("wiki-news-300d-1K.vec"));
+                break;
+            default:                                dataStream = create2DArrayStream(source);
+
+        }
+
+        return dataStream;
+    }
+
 }
