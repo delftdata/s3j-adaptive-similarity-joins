@@ -18,6 +18,7 @@ import java.util.List;
 
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput> {
@@ -27,9 +28,12 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
     OutputTag<Tuple3<Long, Integer, Integer>> sideJoins;
     private MapState<String, List<FinalTuple>> joinState;
 
-    public SimilarityJoin(Double dist_thresh, Logger LOG, OutputTag<Tuple3<Long, Integer, Integer>> sideJoins)throws Exception{
+    public SimilarityJoin(Double dist_thresh) throws Exception{
         this.dist_thresh = dist_thresh;
-        this.LOG = LOG;
+        this.LOG = LoggerFactory.getLogger(this.getClass().getName());
+    }
+
+    public void setSideJoins(OutputTag<Tuple3<Long, Integer, Integer>> sideJoins) {
         this.sideJoins = sideJoins;
     }
 
@@ -47,6 +51,9 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
 
     }
 
+    public boolean isSelfJoin() {
+        return false;
+    }
 
     @Override
     public void flatMap(FinalTuple incoming,
@@ -80,7 +87,7 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
 
 //            LOG.warn(incoming.toString()+", "+t.toString());
 
-            if(incoming.f8 == t.f8){
+            if(isSelfJoin() && incoming.f8.equals(t.f8)){
                 continue;
             }
 
@@ -107,7 +114,7 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
 
         for(FinalTuple t : itemsToEmit){
 //                LOG.warn(incoming.toString()+", "+t.toString());
-            if(incoming.f8 == t.f8){
+            if(isSelfJoin() && incoming.f8.equals(t.f8)){
                 continue;
             }
             if (incoming.f8 > t.f8) {

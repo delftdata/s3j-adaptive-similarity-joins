@@ -1,7 +1,9 @@
 import CustomDataTypes.FinalOutput;
 import CustomDataTypes.FinalTuple;
+import CustomDataTypes.InputTuple;
 import CustomDataTypes.SPTuple;
-import Operators.AdaptivePartitioner;
+import Operators.AdaptivePartitioner.AdapativePartitioner;
+import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
 import Utils.*;
@@ -49,21 +51,24 @@ public class PipelineToTest {
         OutputTag<Tuple3<Long, Integer, Integer>> sideJoins =
                 new OutputTag<Tuple3<Long, Integer, Integer>>("sideJoins"){};
 
-        env.setParallelism(1);
-        DataStream<Tuple4<Long, Long, Integer, Double[]>> data = streamFactory.create2DArrayStream(inputFileName);
-        env.setParallelism(givenParallelism);
 
-        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(0.1, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<InputTuple> data = streamFactory.create2DArrayStream(inputFileName);
+        env.setParallelism(givenParallelism);
+        double dist_threshold = 0.5;
+
+        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(dist_threshold, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
 
 //        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
-
+        AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
+//        adaptivePartitionerCompanion.setSideLPartitions(sideLP);
+//        adaptivePartitionerCompanion.setSideLCentroids(sideLCentroids);
         DataStream<FinalTuple> partitionedData = ppData
                 .keyBy(t-> t.f0)
-                .process(new AdaptivePartitioner(0.1, (env.getMaxParallelism()/env.getParallelism())+1, LOG, sideLP, sideLCentroids));
+                .process(new AdapativePartitioner(adaptivePartitionerCompanion));
 
         partitionedData
                 .keyBy(new LogicalKeySelector())
-                .flatMap(new SimilarityJoin(0.1, LOG, sideJoins))
+                .flatMap(new SimilarityJoin(dist_threshold))
                 .process(new CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());
@@ -73,7 +78,7 @@ public class PipelineToTest {
         return CollectSink.values;
     }
 
-    private static class CollectSink implements SinkFunction<Tuple2<Integer,Integer>> {
+    public static class CollectSink implements SinkFunction<Tuple2<Integer,Integer>> {
 
         // must be static
         public static final List<Tuple2<Integer,Integer>> values = Collections.synchronizedList(new ArrayList<>());
