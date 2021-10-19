@@ -6,6 +6,7 @@ import Operators.AdaptivePartitioner.AdapativePartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
+import Operators.SimilarityJoinSelf;
 import Utils.*;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.*;
@@ -54,7 +55,7 @@ public class PipelineToTest {
 
         DataStream<InputTuple> data = streamFactory.create2DArrayStream(inputFileName);
         env.setParallelism(givenParallelism);
-        double dist_threshold = 0.5;
+        double dist_threshold = 0.05;
 
         DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(dist_threshold, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
 
@@ -68,7 +69,7 @@ public class PipelineToTest {
 
         partitionedData
                 .keyBy(new LogicalKeySelector())
-                .flatMap(new SimilarityJoin(dist_threshold))
+                .flatMap(new SimilarityJoinSelf(dist_threshold))
                 .process(new CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());
