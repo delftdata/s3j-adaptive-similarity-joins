@@ -54,7 +54,6 @@ public class PipelineToTest {
 
 
         DataStream<InputTuple> data = streamFactory.create2DArrayStream(inputFileName);
-        env.setParallelism(givenParallelism);
         double dist_threshold = 0.05;
 
         DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(dist_threshold, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
