@@ -51,8 +51,8 @@ public class PipelineToTest {
 
         HashMap<Integer, Double[]> centroids = SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2);
 
-        DataStream<SPTuple> ppData1 = dataStream1.flatMap(new PhysicalPartitioner(0.1, centroids,(env.getMaxParallelism()/env.getParallelism())+1));
-        DataStream<SPTuple> ppData2 = dataStream2.flatMap(new PhysicalPartitioner(0.1, centroids,(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<SPTuple> ppData1 = dataStream1.flatMap(new PhysicalPartitioner(dist_threshold, centroids,(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<SPTuple> ppData2 = dataStream2.flatMap(new PhysicalPartitioner(dist_threshold, centroids,(env.getMaxParallelism()/env.getParallelism())+1));
 
 //        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
         AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
