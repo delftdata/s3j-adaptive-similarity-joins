@@ -45,15 +45,6 @@ public class PipelineToTest {
         final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats =
                 new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
 
-        final OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
-                new OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>("logicalCentroids"){};
-
-        final OutputTag<Tuple3<Long, Integer, Integer>> sideLP =
-                new OutputTag<Tuple3<Long, Integer, Integer>>("logicalPartitions"){};
-
-        OutputTag<Tuple3<Long, Integer, Integer>> sideJoins =
-                new OutputTag<Tuple3<Long, Integer, Integer>>("sideJoins"){};
-
         DataStream<InputTuple> dataStream1 = streamFactory.create2DArrayStream(stream1);
         DataStream<InputTuple> dataStream2 = streamFactory.create2DArrayStream(stream2);
         double dist_threshold = 0.1;
