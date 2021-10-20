@@ -12,10 +12,10 @@ import org.apache.flink.util.Collector;
 
 import java.nio.channels.ConnectionPendingException;
 
-public class AdapativePartitioner extends KeyedProcessFunction<Integer, SPTuple, FinalTuple> {
+public class AdaptivePartitioner extends KeyedProcessFunction<Integer, SPTuple, FinalTuple> {
     private AdaptivePartitionerCompanion companion;
 
-    public AdapativePartitioner(AdaptivePartitionerCompanion companion) {
+    public AdaptivePartitioner(AdaptivePartitionerCompanion companion) {
         this.companion = companion;
     }
 
@@ -33,7 +33,7 @@ public class AdapativePartitioner extends KeyedProcessFunction<Integer, SPTuple,
 
     @Override
     public void processElement(SPTuple t, Context context, Collector<FinalTuple> collector) throws Exception {
-        companion.assignGroup(t, collector, "left");
+        companion.assignGroup(t, collector, "single");
         collectStats(t, context);
     }
 

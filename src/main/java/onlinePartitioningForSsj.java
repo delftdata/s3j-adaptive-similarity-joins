@@ -3,15 +3,11 @@ import CustomDataTypes.FinalTuple;
 import CustomDataTypes.InputTuple;
 import CustomDataTypes.SPTuple;
 import Operators.*;
-import Operators.AdaptivePartitioner.AdapativePartitioner;
+import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptiveCoPartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
-import Statistics.AverageLatency;
-import Statistics.LatencyMeasure;
-import Statistics.OneStepLatencyAverage;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -19,7 +15,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.util.OutputTag;
 import org.kohsuke.args4j.CmdLineParser;
 import org.slf4j.Logger;
@@ -104,7 +99,7 @@ public class onlinePartitioningForSsj {
             // Inside each machine tuples are grouped in threshold-based groups.
             // Again the grouping is happening by augmenting tuples with key attributes.
             lpData = keyedData
-                    .process(new AdapativePartitioner(adaptivePartitionerCompanion));
+                    .process(new AdaptivePartitioner(adaptivePartitionerCompanion));
 
             similarityOperator = new SimilarityJoinSelf(dist_threshold);
         }

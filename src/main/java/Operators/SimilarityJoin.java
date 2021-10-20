@@ -93,7 +93,7 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
 
             Double[] tEmbed = t.f9;
 
-            if (incoming.f8 > t.f8) {
+            if (incoming.f11.equals("left")) {
                 collector.collect(
                         new FinalOutput(
                                 (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
@@ -117,7 +117,7 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
             if(isSelfJoin() && incoming.f8.equals(t.f8)){
                 continue;
             }
-            if (incoming.f8 > t.f8) {
+            if (incoming.f11.equals("left")) {
                 collector.collect(
                         new FinalOutput(
                                 true,

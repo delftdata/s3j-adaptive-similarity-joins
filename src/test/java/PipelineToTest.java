@@ -2,10 +2,9 @@ import CustomDataTypes.FinalOutput;
 import CustomDataTypes.FinalTuple;
 import CustomDataTypes.InputTuple;
 import CustomDataTypes.SPTuple;
-import Operators.AdaptivePartitioner.AdapativePartitioner;
+import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
 import Operators.PhysicalPartitioner;
-import Operators.SimilarityJoin;
 import Operators.SimilarityJoinSelf;
 import Utils.*;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -14,7 +13,6 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.util.OutputTag;
 
 import java.nio.file.Paths;
@@ -64,7 +62,7 @@ public class PipelineToTest {
 //        adaptivePartitionerCompanion.setSideLCentroids(sideLCentroids);
         DataStream<FinalTuple> partitionedData = ppData
                 .keyBy(t-> t.f0)
-                .process(new AdapativePartitioner(adaptivePartitionerCompanion));
+                .process(new AdaptivePartitioner(adaptivePartitionerCompanion));
 
         partitionedData
                 .keyBy(new LogicalKeySelector())

@@ -13,6 +13,7 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
 import org.apache.flink.util.Collector;
@@ -28,11 +29,11 @@ import java.util.PriorityQueue;
 public class AdaptivePartitionerCompanion implements Serializable {
     private double dist_thresh;
     private int keyRange;
-    private ListState<SPTuple> phyOuters;
+    private ListState<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> phyOuters;
     private MapState<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> mappingGroupsToNodes;
     private OutputTag<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids;
     private OutputTag<Tuple3<Long, Integer, Integer>> sideLPartitions;
-//    private Logger LOG;
+    private Logger LOG;
 
 
     public AdaptivePartitionerCompanion() {
@@ -46,7 +47,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
         return keyRange;
     }
 
-    public ListState<SPTuple> getPhyOuters() {
+    public ListState<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> getPhyOuters() {
         return phyOuters;
     }
 
@@ -73,24 +74,22 @@ public class AdaptivePartitionerCompanion implements Serializable {
     public AdaptivePartitionerCompanion(double dist_thresh, int keyRange) {
         this.dist_thresh = dist_thresh;
         this.keyRange = keyRange;
-//        this.LOG = LoggerFactory.getLogger(this.getClass().getName());
+        this.LOG = LoggerFactory.getLogger(this.getClass().getName());
     }
 
     void open(Configuration config, AbstractRichFunction adaptivePartitioner){
-        ListStateDescriptor<SPTuple> phyOutersDesc =
-                new ListStateDescriptor<>(
+        ListStateDescriptor<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> phyOutersDesc =
+                new ListStateDescriptor<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>>(
                         "phyOuters",
-                        TypeInformation.of(SPTuple.class)
+                        TypeInformation.of(new TypeHint<Tuple8<Integer, String, Integer, Long, Long, Integer, Double[], String>>() {})
                 );
         phyOuters = adaptivePartitioner.getRuntimeContext().getListState(phyOutersDesc);
 
         MapStateDescriptor<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> mappingGroupsToNodesDesc =
-                new MapStateDescriptor<>(
+                new MapStateDescriptor<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>>(
                         "mapping",
-                        TypeInformation.of(new TypeHint<Integer>() {
-                        }),
-                        TypeInformation.of(new TypeHint<Tuple2<Tuple3<Long, Integer, Double[]>, Integer>>() {
-                        })
+                        TypeInformation.of(new TypeHint<Integer>() {}),
+                        TypeInformation.of(new TypeHint<Tuple2<Tuple3<Long,Integer,Double[]>, Integer>>() {})
                 );
         mappingGroupsToNodes = adaptivePartitioner.getRuntimeContext().getMapState(mappingGroupsToNodesDesc);
     }
@@ -106,8 +105,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
     void assignGroup(
             SPTuple t,
             Collector<FinalTuple> collector,
-            String origin) throws Exception  {
-
+            String origin) throws Exception {
         Double[] emb = t.f6;
         int part_num = Iterables.size(mappingGroupsToNodes.keys());
 
@@ -116,11 +114,8 @@ public class AdaptivePartitionerCompanion implements Serializable {
 
         boolean isOutlier = false;
 
-        // Tuples belonging to the outer partition of the machine can only be used for outer groups.
-        // Tuples belonging to the outer partition of the machine can only be used for outer groups.
-        // For a tuple to belong to an outer group, it must satisfy a distance criterion.
         if (t.f1.equals("pOuter")) {
-            for (Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>,Integer>> centroid : mappingGroupsToNodes.entries()) {
+            for (Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> centroid : mappingGroupsToNodes.entries()) {
                 Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2);
                 distances.add(new Tuple2<>(centroid.getKey(), dist));
 
@@ -129,30 +124,20 @@ public class AdaptivePartitionerCompanion implements Serializable {
 //                    LOG.warn(new FinalTuple(centroid.getKey(), "outer", t.f0, t.f1, t.f2, -1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(centroid.getKey()).f1, originStream).toString());
                 }
             }
-            phyOuters.add(t);
-        }
-        // Tuples belonging to the inner partition of the machine can only be used for outer groups.
-        // For a tuple to belong to an outer group, it must satisfy a distance criterion.
-        else if (t.f1.equals("pInner")) {
-            //if there are no groups created yet, create the first pair of outer-inner groups
-            // and check if there are any outer tuples that might need to be included to the outer group.
+            phyOuters.add(new Tuple8<>(t.f0, t.f1, t.f2, t.f3, t.f4, t.f5, t.f6, origin));
+        } else if (t.f1.equals("pInner")) {
             if (part_num == 0) {
                 mappingGroupsToNodes.put(1, new Tuple2<>(new Tuple3<Long, Integer, Double[]>(t.f3, t.f5, emb), t.f0));
                 collector.collect(new FinalTuple(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(1).f1, origin));
-//                LOG.warn(new FinalTuple(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(1).f1, originStream).toString());
-                for(SPTuple po : phyOuters.get()){
+                LOG.warn(new FinalTuple(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(1).f1, origin).toString());
+                for (Tuple8<Integer, String, Integer, Long, Long, Integer, Double[], String> po : phyOuters.get()) {
                     Double[] temp = po.f6;
-                    if(SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh){
-                        collector.collect(new FinalTuple(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(1).f1, origin));
-//                        LOG.warn(new FinalTuple(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(1).f1, originStream).toString());
+                    if (SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh) {
+                        collector.collect(new FinalTuple(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(1).f1, po.f7));
+//                        LOG.warn(new FinalTuple(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(1).f1, po.f7).toString());
                     }
                 }
             } else {
-                // if there are groups, calculate the distance of the incoming tuple t from their centroids.
-                // Based on these distances decide whether there is an existing group that can contain t, whether
-                // a new pair of groups with t as its centroid must be created, or t must be an outlier.
-                // Based on the calculated distances and a routing criterion, we also decide to which groups t should be
-                // included as an outer.
                 int inner;
                 for (Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> centroid : mappingGroupsToNodes.entries()) {
                     Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2);
@@ -169,14 +154,14 @@ public class AdaptivePartitionerCompanion implements Serializable {
                     if (distances.peek().f1 > dist_thresh) {
                         inner = part_num + 1;
                         mappingGroupsToNodes.put(part_num + 1, new Tuple2<>(new Tuple3<>(t.f3, t.f5, emb), t.f0));
-                        collector.collect(new FinalTuple(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(part_num+1).f1, origin));
+                        collector.collect(new FinalTuple(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(part_num + 1).f1, origin));
 //                        LOG.warn(new FinalTuple(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(part_num+1).f1, originStream).toString());
-                        for(SPTuple po : phyOuters.get()){
+                        for (Tuple8<Integer, String, Integer, Long, Long, Integer, Double[], String> po : phyOuters.get()) {
                             Double[] temp = po.f6;
 
-                            if(SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh){
-                                collector.collect(new FinalTuple(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(part_num+1).f1, origin));
-//                                LOG.warn(new FinalTuple(part_num + 1, "inner", t.f0, t.f1, t.f2, part_num + 1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(part_num+1).f1, originStream).toString());
+                            if (SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh) {
+                                collector.collect(new FinalTuple(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(part_num + 1).f1, po.f7));
+//                                LOG.warn(new FinalTuple(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(part_num+1).f1, po.f7).toString());
                             }
                         }
 
@@ -212,5 +197,6 @@ public class AdaptivePartitionerCompanion implements Serializable {
                 }
             }
         }
+
     }
 }
