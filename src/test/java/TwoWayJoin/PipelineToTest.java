@@ -1,11 +1,14 @@
+package TwoWayJoin;
+
 import CustomDataTypes.FinalOutput;
 import CustomDataTypes.FinalTuple;
 import CustomDataTypes.InputTuple;
 import CustomDataTypes.SPTuple;
+import Operators.AdaptivePartitioner.AdaptiveCoPartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
 import Operators.PhysicalPartitioner;
-import Operators.SimilarityJoinSelf;
+import Operators.SimilarityJoin;
 import Utils.*;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.*;
@@ -13,6 +16,7 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
 import org.apache.flink.util.OutputTag;
 
 import java.nio.file.Paths;
@@ -28,7 +32,7 @@ public class PipelineToTest {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
-    public List<Tuple2<Integer,Integer>> run(int givenParallelism, String inputFileName, Logger LOG) throws Exception{
+    public List<Tuple2<String,String>> run(int givenParallelism, String stream1, String stream2, Logger LOG) throws Exception{
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -50,23 +54,26 @@ public class PipelineToTest {
         OutputTag<Tuple3<Long, Integer, Integer>> sideJoins =
                 new OutputTag<Tuple3<Long, Integer, Integer>>("sideJoins"){};
 
+        DataStream<InputTuple> dataStream1 = streamFactory.create2DArrayStream(stream1);
+        DataStream<InputTuple> dataStream2 = streamFactory.create2DArrayStream(stream2);
+        double dist_threshold = 0.1;
 
-        DataStream<InputTuple> data = streamFactory.create2DArrayStream(inputFileName);
-        double dist_threshold = 0.05;
+        HashMap<Integer, Double[]> centroids = SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2);
 
-        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(dist_threshold, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<SPTuple> ppData1 = dataStream1.flatMap(new PhysicalPartitioner(0.1, centroids,(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<SPTuple> ppData2 = dataStream2.flatMap(new PhysicalPartitioner(0.1, centroids,(env.getMaxParallelism()/env.getParallelism())+1));
 
 //        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
         AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
-//        adaptivePartitionerCompanion.setSideLPartitions(sideLP);
-//        adaptivePartitionerCompanion.setSideLCentroids(sideLCentroids);
-        DataStream<FinalTuple> partitionedData = ppData
+
+        DataStream<FinalTuple> partitionedData = ppData1
                 .keyBy(t-> t.f0)
-                .process(new AdaptivePartitioner(adaptivePartitionerCompanion));
+                .connect(ppData2.keyBy(t -> t.f0))
+                .process(new AdaptiveCoPartitioner(adaptivePartitionerCompanion));
 
         partitionedData
                 .keyBy(new LogicalKeySelector())
-                .flatMap(new SimilarityJoinSelf(dist_threshold))
+                .flatMap(new SimilarityJoin(dist_threshold))
                 .process(new CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());
@@ -76,22 +83,22 @@ public class PipelineToTest {
         return CollectSink.values;
     }
 
-    public static class CollectSink implements SinkFunction<Tuple2<Integer,Integer>> {
+    private static class CollectSink implements SinkFunction<Tuple2<String,String>> {
 
         // must be static
-        public static final List<Tuple2<Integer,Integer>> values = Collections.synchronizedList(new ArrayList<>());
+        public static final List<Tuple2<String,String>> values = Collections.synchronizedList(new ArrayList<>());
 
         @Override
-        public void invoke(Tuple2<Integer,Integer> value) throws Exception {
+        public void invoke(Tuple2<String,String> value) throws Exception {
             values.add(value);
         }
     }
 
-    private static class Map2ID implements MapFunction<FinalOutput, Tuple2<Integer,Integer>> {
+    private static class Map2ID implements MapFunction<FinalOutput, Tuple2<String,String>> {
 
         @Override
-        public Tuple2<Integer, Integer> map(FinalOutput t) throws Exception {
-            return new Tuple2<>(t.f1.f8, t.f2.f8);
+        public Tuple2<String, String> map(FinalOutput t) throws Exception {
+            return new Tuple2<>(t.f1.f8.toString() + "L", t.f2.f8.toString() + "R");
         }
     }
 
