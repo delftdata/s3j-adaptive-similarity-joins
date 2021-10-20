@@ -343,6 +343,69 @@ public class SimilarityJoinsUtil {
         }
     }
 
+    public static void create2WayGroundTruth(String streamLeft, String streamRight, Double threshold) throws Exception{
+        LinkedList<Tuple3<Long,Integer,Double[]>> recordsLeft = new LinkedList<>();
+        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+streamLeft+".txt"),Charset.defaultCharset())) {
+            lines.map(new Function<String, Tuple3<Long, Integer, Double[]>>() {
+                @Override
+                public Tuple3<Long, Integer, Double[]> apply(String s) {
+                    String[] splitedString = s.split(", ", 3);
+                    Double[] arr2D = new Double[2];
+
+                    int counter = 0;
+                    for(String d : splitedString[2].split(", ")){
+                        arr2D[counter] = Double.parseDouble(d.replaceAll("[\\]\\[]", ""));
+                        counter++;
+                    }
+                    return new Tuple3<Long,Integer,Double[]>(Long.parseLong(splitedString[0]), Integer.parseInt(splitedString[1]), arr2D);
+                }
+            })
+                    .forEach(recordsLeft::addFirst);
+        }
+        LinkedList<Tuple3<Long,Integer,Double[]>> recordsRight = new LinkedList<>();
+        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+streamRight+".txt"),Charset.defaultCharset())) {
+            lines.map(new Function<String, Tuple3<Long, Integer, Double[]>>() {
+                @Override
+                public Tuple3<Long, Integer, Double[]> apply(String s) {
+                    String[] splitedString = s.split(", ", 3);
+                    Double[] arr2D = new Double[2];
+
+                    int counter = 0;
+                    for(String d : splitedString[2].split(", ")){
+                        arr2D[counter] = Double.parseDouble(d.replaceAll("[\\]\\[]", ""));
+                        counter++;
+                    }
+                    return new Tuple3<Long,Integer,Double[]>(Long.parseLong(splitedString[0]), Integer.parseInt(splitedString[1]), arr2D);
+                }
+            })
+                    .forEach(recordsRight::addFirst);
+        }
+        try {
+            FileWriter myWriter = new FileWriter(pwd + "/src/main/resources/twoWayGroundTruth"+threshold.toString().replace(".", "_")+".txt");
+            while (!recordsLeft.isEmpty()) {
+                Tuple3<Long,Integer,Double[]> toCompare = recordsLeft.poll();
+                Double[] comEmb = toCompare.f2;
+                for(Tuple3<Long,Integer,Double[]> r : recordsRight){
+                    Double[] emb = r.f2;
+                    Double dist = AngularDistance(comEmb, emb);
+                    if(dist < threshold){
+                        String toWrite = new Tuple2<String, String>(toCompare.f1.toString() + "L", r.f1.toString() + "R").toString()
+                                .replaceAll("\\(","").replaceAll("\\)","") + "\n";
+                        myWriter.write(toWrite);
+                    }
+                }
+            }
+            myWriter.close();
+        }
+        catch (Exception e) {
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
+
+
+    }
+
     public static HashMap<String, Double[]> readEmbeddings(String file4WE) throws Exception{
         HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
         try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+file4WE),Charset.defaultCharset()).skip(1)) {
