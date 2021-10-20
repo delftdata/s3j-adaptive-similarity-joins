@@ -98,7 +98,8 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                         new FinalOutput(
                                 (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
                                 incoming,
-                                t
+                                t,
+                                System.currentTimeMillis()
                         )
                 );
             } else {
@@ -106,7 +107,8 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                         new FinalOutput(
                                 (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
                                 t,
-                                incoming
+                                incoming,
+                                System.currentTimeMillis()
                         )
                 );
             }
@@ -122,7 +124,8 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                         new FinalOutput(
                                 true,
                                 incoming,
-                                t
+                                t,
+                                System.currentTimeMillis()
                         )
                 );
             } else {
@@ -130,7 +133,8 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                         new FinalOutput(
                                 true,
                                 t,
-                                incoming
+                                incoming,
+                                System.currentTimeMillis()
                         )
                 );
             }

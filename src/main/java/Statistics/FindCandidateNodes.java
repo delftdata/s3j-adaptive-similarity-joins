@@ -26,10 +26,10 @@ public class FindCandidateNodes implements MapFunction<List<Tuple3<Long, Integer
         List<Integer> under = new ArrayList<>();
 
         for(Tuple3<Long, Integer, Long> t : tuples){
-            if(t.f2 < 0.6 * average){
+            if(t.f2 < 0.8 * average){
                 under.add(t.f1);
             }
-            else if (t.f2 > 1.4 * average){
+            else if (t.f2 > 1.2 * average){
                 over.add(t.f1);
             }
         }
