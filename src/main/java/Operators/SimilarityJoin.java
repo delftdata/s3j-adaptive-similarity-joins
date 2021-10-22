@@ -14,6 +14,7 @@ import org.apache.flink.util.Collector;
 
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.apache.flink.util.OutputTag;
@@ -26,7 +27,7 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
     Double dist_thresh;
     private Logger LOG;
     OutputTag<Tuple3<Long, Integer, Integer>> sideJoins;
-    private MapState<String, List<FinalTuple>> joinState;
+    MapState<String, HashMap<String, List<FinalTuple>>> joinState;
 
     public SimilarityJoin(Double dist_thresh) throws Exception{
         this.dist_thresh = dist_thresh;
@@ -39,11 +40,11 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        MapStateDescriptor<String, List<FinalTuple>> joinStateDesc =
-                new MapStateDescriptor<String, List<FinalTuple>>(
+        MapStateDescriptor<String, HashMap<String, List<FinalTuple>>> joinStateDesc =
+                new MapStateDescriptor<String, HashMap<String, List<FinalTuple>>>(
                         "joinState",
                         TypeInformation.of(new TypeHint<String>() {}),
-                        TypeInformation.of(new TypeHint<List<FinalTuple>>() {
+                        TypeInformation.of(new TypeHint<HashMap<String, List<FinalTuple>>>() {
                         })
                 );
 
@@ -62,81 +63,92 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
 
 
         Double[] incomingEmbed = incoming.f9;
+        String toCompare;
+        if(incoming.f11.equals("left")){
+            toCompare = "right";
+        }
+        else if (incoming.f11.equals("right")){
+            toCompare = "left";
+        } else {
+            toCompare = "single";
+        }
+
 
         insertToState(incoming);
 
+
         List<FinalTuple> itemsToCompare = new ArrayList<>();
         List<FinalTuple> itemsToEmit = new ArrayList<>();
-
-        if(!joinState.isEmpty()) {
+        if(joinState.contains(toCompare)) {
+            HashMap<String, List<FinalTuple>> toCompareMap = joinState.get(toCompare);
             if (incoming.f1.equals("inner")) {
-                itemsToCompare.addAll(joinState.get("outer"));
-                itemsToCompare.addAll(joinState.get("outlier"));
-                itemsToEmit.addAll(joinState.get("inner"));
+                itemsToCompare.addAll(toCompareMap.get("outer"));
+                itemsToCompare.addAll(toCompareMap.get("outlier"));
+                itemsToEmit.addAll(toCompareMap.get("inner"));
             } else if (incoming.f1.equals("outlier")) {
-                itemsToCompare.addAll(joinState.get("inner"));
-                itemsToCompare.addAll(joinState.get("outer"));
-                itemsToCompare.addAll(joinState.get("outlier"));
+                itemsToCompare.addAll(toCompareMap.get("inner"));
+                itemsToCompare.addAll(toCompareMap.get("outer"));
+                itemsToCompare.addAll(toCompareMap.get("outlier"));
             } else {
-                itemsToCompare.addAll(joinState.get("inner"));
-                itemsToCompare.addAll(joinState.get("outlier"));
+                itemsToCompare.addAll(toCompareMap.get("inner"));
+                itemsToCompare.addAll(toCompareMap.get("outlier"));
             }
-        }
 
-        for (FinalTuple t : itemsToCompare) {
+
+            for (FinalTuple t : itemsToCompare) {
 
 //            LOG.warn(incoming.toString()+", "+t.toString());
 
-            if(isSelfJoin() && incoming.f8.equals(t.f8)){
-                continue;
+                if(isSelfJoin() && incoming.f8 == t.f8){
+                    continue;
+                }
+
+                Double[] tEmbed = t.f9;
+                if ((incoming.f8 > t.f8 && isSelfJoin()) || incoming.f11.equals("left")) {
+                    collector.collect(
+                            new FinalOutput(
+                                    (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
+                                    incoming,
+                                    t,
+                                    System.currentTimeMillis()
+                            )
+                    );
+                } else {
+                    collector.collect(
+                            new FinalOutput(
+                                    (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
+                                    t,
+                                    incoming,
+                                    System.currentTimeMillis()
+                            )
+                    );
+                }
             }
 
-            Double[] tEmbed = t.f9;
-
-            if (incoming.f11.equals("left")) {
-                collector.collect(
-                        new FinalOutput(
-                                (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
-                                incoming,
-                                t,
-                                System.currentTimeMillis()
-                        )
-                );
-            } else {
-                collector.collect(
-                        new FinalOutput(
-                                (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
-                                t,
-                                incoming,
-                                System.currentTimeMillis()
-                        )
-                );
-            }
-        }
-
-        for(FinalTuple t : itemsToEmit){
+            for(FinalTuple t : itemsToEmit){
 //                LOG.warn(incoming.toString()+", "+t.toString());
-            if(isSelfJoin() && incoming.f8.equals(t.f8)){
-                continue;
-            }
-            if (incoming.f11.equals("left")) {
-                collector.collect(
-                        new FinalOutput(
-                                true,
-                                incoming,
-                                t,
-                                System.currentTimeMillis()
-                        )
-                );
-            } else {
-                collector.collect(
-                        new FinalOutput(
-                                true,
-                                t,
-                                incoming,
-                                System.currentTimeMillis()
-                        )
-                );
+                if(isSelfJoin() && incoming.f8 == t.f8){
+                    continue;
+                }
+                if (incoming.f8 > t.f8) {
+                    collector.collect(
+                            new FinalOutput(
+                                    true,
+                                    incoming,
+                                    t,
+                                    System.currentTimeMillis()
+                            )
+                    );
+                } else {
+                    collector.collect(
+                            new FinalOutput(
+                                    true,
+                                    t,
+                                    incoming,
+                                    System.currentTimeMillis()
+                            )
+                    );
+                }
             }
         }
     }
@@ -146,18 +158,36 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
     private void insertToState(FinalTuple incoming) throws Exception {
 
         if(joinState.isEmpty()){
+            HashMap<String, List<FinalTuple>> tmp = new HashMap<String, List<FinalTuple>>();
             List<FinalTuple> tmpList = new ArrayList<>();
             tmpList.add(incoming);
-            joinState.put("inner", new ArrayList<>());
-            joinState.put("outer", new ArrayList<>());
-            joinState.put("outlier", new ArrayList<>());
-            joinState.put(incoming.f1, tmpList);
+            tmp.put("inner", new ArrayList<>());
+            tmp.put("outer", new ArrayList<>());
+            tmp.put("outlier", new ArrayList<>());
+            tmp.put(incoming.f1, tmpList);
+            joinState.put(incoming.f11, tmp);
         }
         else{
+            HashMap<String, List<FinalTuple>> tmp;
+            if (joinState.contains(incoming.f11)){
+                tmp = joinState.get(incoming.f11);
+            }
+            else{
+                tmp = new HashMap<>();
+                tmp.put("inner", new ArrayList<>());
+                tmp.put("outer", new ArrayList<>());
+                tmp.put("outlier", new ArrayList<>());
+            }
             List<FinalTuple> tmpList;
-            tmpList = joinState.get(incoming.f1);
+            if(tmp.containsKey(incoming.f1)){
+                tmpList = tmp.get(incoming.f1);
+            }
+            else{
+                tmpList = new ArrayList<>();
+            }
             tmpList.add(incoming);
-            joinState.put(incoming.f1, tmpList);
+            tmp.put(incoming.f1, tmpList);
+            joinState.put(incoming.f11, tmp);
         }
 
     }
