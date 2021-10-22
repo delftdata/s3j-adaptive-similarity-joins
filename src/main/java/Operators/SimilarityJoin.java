@@ -130,7 +130,7 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                 if(isSelfJoin() && incoming.f8 == t.f8){
                     continue;
                 }
-                if (incoming.f8 > t.f8) {
+                if ((incoming.f8 > t.f8 && isSelfJoin()) || incoming.f11.equals("left")) {
                     collector.collect(
                             new FinalOutput(
                                     true,
