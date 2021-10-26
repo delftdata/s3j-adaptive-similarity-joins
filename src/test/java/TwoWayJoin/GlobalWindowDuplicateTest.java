@@ -1,3 +1,5 @@
+package TwoWayJoin;
+
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -25,18 +27,18 @@ public class GlobalWindowDuplicateTest {
     public void testDuplicateResults() throws Exception{
 
         PipelineToTest pipeline = new PipelineToTest();
-        List<Tuple2<Integer,Integer>> results = pipeline.run(10, "src/test/resources/1K_2D_Array_Stream_v2.txt", LOG);
+        List<Tuple2<String,String>> results = pipeline.run(10, "src/test/resources/twoWayStreamLeft.txt", "src/test/resources/twoWayStreamRight.txt", LOG);
 
         assertFalse(hasDuplicate(results));
     }
 
     // Code adapted from https://stackoverflow.com/a/600319
-    public static boolean hasDuplicate(List<Tuple2<Integer,Integer>> all) {
+    public static boolean hasDuplicate(List<Tuple2<String,String>> all) {
         boolean result = false;
-        Set<Tuple2<Integer,Integer>> set = new HashSet<Tuple2<Integer,Integer>>();
+        Set<Tuple2<String,String>> set = new HashSet<Tuple2<String,String>>();
         // Set#add returns false if the set does not change, which
         // indicates that a duplicate element has been added.
-        for (Tuple2<Integer,Integer> each: all) {
+        for (Tuple2<String,String> each: all) {
 //            System.out.println(each);
             if (!set.add(each)){
                 System.out.println("duplicate: " + each.toString());

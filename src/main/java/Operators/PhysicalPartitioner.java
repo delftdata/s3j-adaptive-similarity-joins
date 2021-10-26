@@ -1,5 +1,6 @@
 package Operators;
 
+import CustomDataTypes.InputTuple;
 import CustomDataTypes.SPTuple;
 import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -13,7 +14,7 @@ import java.util.Map;
 
 
 
-public class PhysicalPartitioner implements FlatMapFunction<Tuple4<Long, Long,Integer,Double[]>, SPTuple> {
+public class PhysicalPartitioner implements FlatMapFunction<InputTuple, SPTuple> {
 
     Double dist_thresh;
     HashMap<Integer, Double[]> partCentroids;
@@ -26,7 +27,7 @@ public class PhysicalPartitioner implements FlatMapFunction<Tuple4<Long, Long,In
     }
 
     @Override
-    public void flatMap(Tuple4<Long, Long, Integer, Double[]> t, Collector<SPTuple> collector) throws Exception {
+    public void flatMap(InputTuple t, Collector<SPTuple> collector) throws Exception {
 
         int numPartitions = 0;
         for (Map.Entry<Integer, Double[]> e : partCentroids.entrySet()){

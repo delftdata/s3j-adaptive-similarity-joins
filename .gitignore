@@ -4,3 +4,9 @@
 src/main/outputs/*
 /src/main/resources/logCorrectnessTest.out
 .DS_Store
+libs/*
+!.keep
+.idea
+/src/main/resources/streamed_dataset.txt/*
+log.out
+*.iml

@@ -1,5 +1,6 @@
 package Utils;
 
+import CustomDataTypes.InputTuple;
 import Generators.*;
 import Parsers.ArrayStreamParser;
 import Parsers.Parser;
@@ -35,66 +36,66 @@ public class StreamFactory {
         return simpleWords;
     }
 
-    public DataStream<Tuple4<Long, Long, Integer, Double[]>> create2DArrayStream(String pathToFile){
+    public DataStream<InputTuple> create2DArrayStream(String pathToFile){
 //        String path = Utils.Resource.getPath(inputFileName);
         DataStream<Tuple3<Long, Integer, Double[]>> initial = env.readTextFile(pathToFile,"UTF-8").map(new ArrayStreamParser());
-        DataStream<Tuple4<Long, Long, Integer, Double[]>> arrays2D = initial.map(x -> new Tuple4<>(x.f0, System.currentTimeMillis(), x.f1, x.f2))
-                .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Long, Integer, Double[]>>() {}));
-        arrays2D = arrays2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple4<Long, Long, Integer, Double[]>>() {
+        DataStream<InputTuple> arrays2D = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
+                .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
+        arrays2D = arrays2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
             @Override
-            public long extractAscendingTimestamp(Tuple4<Long, Long, Integer, Double[]> t) {
+            public long extractAscendingTimestamp(InputTuple t) {
                 return t.f0;
             }
         });
         return arrays2D;
     }
 
-    public DataStream<Tuple4<Long, Long, Integer, Double[]>> createGaussian2DStream(int seed, int rate, Long tmsp){
+    public DataStream<InputTuple> createGaussian2DStream(int seed, int rate, Long tmsp){
         DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new Gaussian2DStreamGenerator(seed, rate, tmsp));
-        DataStream<Tuple4<Long, Long, Integer, Double[]>> gaussian2D = initial.map(x -> new Tuple4<>(x.f0, System.currentTimeMillis(), x.f1, x.f2))
-                .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Long, Integer, Double[]>>() {}));
-        gaussian2D = gaussian2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple4<Long, Long, Integer, Double[]>>() {
+        DataStream<InputTuple> gaussian2D = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
+                .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
+        gaussian2D = gaussian2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
             @Override
-            public long extractAscendingTimestamp(Tuple4<Long, Long, Integer, Double[]> t) {
+            public long extractAscendingTimestamp(InputTuple t) {
                 return t.f0;
             }
         });
         return gaussian2D;
     }
 
-    public DataStream<Tuple4<Long, Long, Integer, Double[]>> createSkewedGaussian2DStream(int seed, int rate, Long tmsp){
+    public DataStream<InputTuple> createSkewedGaussian2DStream(int seed, int rate, Long tmsp){
         DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new SkewedGaussian2DStreamGenerator(seed, rate, tmsp));
-        DataStream<Tuple4<Long, Long, Integer, Double[]>> skewed_gaussian2D = initial.map(x -> new Tuple4<>(x.f0, System.currentTimeMillis(), x.f1, x.f2))
-                .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Long, Integer, Double[]>>() {}));
-        skewed_gaussian2D = skewed_gaussian2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple4<Long, Long, Integer, Double[]>>() {
+        DataStream<InputTuple> skewed_gaussian2D = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
+                .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
+        skewed_gaussian2D = skewed_gaussian2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
             @Override
-            public long extractAscendingTimestamp(Tuple4<Long, Long, Integer, Double[]> t) {
+            public long extractAscendingTimestamp(InputTuple t) {
                 return t.f0;
             }
         });
         return skewed_gaussian2D;
     }
 
-    public DataStream<Tuple4<Long, Long, Integer, Double[]>> createUniform2DStream(int seed, int rate, Long tmsp){
+    public DataStream<InputTuple> createUniform2DStream(int seed, int rate, Long tmsp){
         DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new Uniform2DStreamGenerator(seed, rate, tmsp));
-        DataStream<Tuple4<Long, Long, Integer, Double[]>> uniform = initial.map(x -> new Tuple4<>(x.f0, System.currentTimeMillis(), x.f1, x.f2))
-                .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Long, Integer, Double[]>>() {}));
-        uniform = uniform.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple4<Long, Long, Integer, Double[]>>() {
+        DataStream<InputTuple> uniform = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
+                .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
+        uniform = uniform.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
             @Override
-            public long extractAscendingTimestamp(Tuple4<Long, Long, Integer, Double[]> t) {
+            public long extractAscendingTimestamp(InputTuple t) {
                 return t.f0;
             }
         });
         return uniform;
     }
 
-    public DataStream<Tuple4<Long, Long, Integer, Double[]>> createPareto2DStream(double scale, double shape, int rate, Long tmsp){
+    public DataStream<InputTuple> createPareto2DStream(double scale, double shape, int rate, Long tmsp){
         DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new Pareto2DStreamGenerator(scale, shape, rate, tmsp));
-        DataStream<Tuple4<Long, Long, Integer, Double[]>> pareto = initial.map(x -> new Tuple4<>(x.f0, System.currentTimeMillis(), x.f1, x.f2))
-                .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Long, Integer, Double[]>>() {}));
-        pareto = pareto.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple4<Long, Long, Integer, Double[]>>() {
+        DataStream<InputTuple> pareto = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
+                .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
+        pareto = pareto.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
             @Override
-            public long extractAscendingTimestamp(Tuple4<Long, Long, Integer, Double[]> t) {
+            public long extractAscendingTimestamp(InputTuple t) {
                 return t.f0;
             }
         });
@@ -121,6 +122,32 @@ public class StreamFactory {
             System.exit(-1);
         }
         return null;
+    }
+
+
+    public DataStream<InputTuple> createDataStream(String source) throws Exception {
+        DataStream<InputTuple> dataStream;
+        int parallelismBefore = env.getParallelism();
+        env.setParallelism(1);
+
+        switch(source) {
+            case "gaussian_2D_generator":           dataStream = createGaussian2DStream(42, 1000, 10L);
+                break;
+            case "skewed_gaussian_2D_generator":    dataStream = createSkewedGaussian2DStream(42, 1000, 10L);
+                break;
+            case "uniform_2D_generator":            dataStream = createUniform2DStream(42, 1000, 10L);
+                break;
+            case "pareto_2D_generator":             dataStream = createPareto2DStream(1.0, 10.0 , 1000, 10L);
+                break;
+            case "zipfian_word_generator":          dataStream = createZipfianWordStream("wiki-news-300d-1K.vec", 2.0, 1000, 10L)
+                    .map(new WordsToEmbeddingMapper("wiki-news-300d-1K.vec"));
+                break;
+            default:                                dataStream = create2DArrayStream(source);
+
+        }
+
+        env.setParallelism(parallelismBefore);
+        return dataStream;
     }
 
 }
