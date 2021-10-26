@@ -84,7 +84,7 @@ public class onlinePartitioningForSsj {
         // Basically the partitioning is happening by augmenting tuples with key attributes.
         DataStream<InputTuple> firstStream = streamFactory.createDataStream(options.getFirstStream());
         DataStream<SPTuple> ppData1 = firstStream.
-                flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1));
+                flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
 
         AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
         adaptivePartitionerCompanion.setSideLPartitions(sideLP);
@@ -95,11 +95,11 @@ public class onlinePartitioningForSsj {
             DataStream<InputTuple> secondStream = streamFactory.createDataStream(options.getSecondStream());
 
             DataStream<SPTuple> ppData2 = secondStream.
-                    flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1));
+                    flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("secondSpacePartitioner");
 
             lpData = keyedData
                     .connect(ppData2.keyBy(t -> t.f0))
-                    .process(new AdaptiveCoPartitioner(adaptivePartitionerCompanion));
+                    .process(new AdaptiveCoPartitioner(adaptivePartitionerCompanion)).uid("adaptivePartitioner");
 
             similarityOperator = new SimilarityJoin(dist_threshold);
         } else {
@@ -109,7 +109,7 @@ public class onlinePartitioningForSsj {
             // Inside each machine tuples are grouped in threshold-based groups.
             // Again the grouping is happening by augmenting tuples with key attributes.
             lpData = keyedData
-                    .process(new AdaptivePartitioner(adaptivePartitionerCompanion));
+                    .process(new AdaptivePartitioner(adaptivePartitionerCompanion)).uid("adaptivePartitioner");
 
             similarityOperator = new SimilarityJoinSelf(dist_threshold);
         }
@@ -120,7 +120,7 @@ public class onlinePartitioningForSsj {
         SingleOutputStreamOperator<FinalOutput>
                 unfilteredSelfJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
-                .flatMap(similarityOperator);
+                .flatMap(similarityOperator).uid("similarityJoin");
 
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", "localhost:9092");
@@ -135,8 +135,6 @@ public class onlinePartitioningForSsj {
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
-
-
 
 
 //        stream.addSink(myProducer);
