@@ -2,26 +2,36 @@ import CustomDataTypes.FinalOutput;
 import CustomDataTypes.FinalTuple;
 import CustomDataTypes.InputTuple;
 import CustomDataTypes.SPTuple;
-import Operators.*;
-import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptiveCoPartitioner;
+import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
-import Utils.*;
+import Operators.PhysicalPartitioner;
+import Operators.SimilarityJoin;
+import Operators.SimilarityJoinSelf;
+import Utils.CustomFiltering;
+import Utils.LogicalKeySelector;
+import Utils.SimilarityJoinsUtil;
+import Utils.StreamFactory;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.util.OutputTag;
 import org.kohsuke.args4j.CmdLineParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 
@@ -50,7 +60,7 @@ public class onlinePartitioningForSsj {
         // ========================================================================================================== //
 
         // OutputTags for sideOutputs. Used to extract information for statistics.
-        final OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
+        final OutputTag<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
                 new OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>("logicalCentroids"){};
 
         final OutputTag<Tuple3<Long, Integer, Integer>> sideLP =
@@ -112,11 +122,24 @@ public class onlinePartitioningForSsj {
                 .keyBy(new LogicalKeySelector())
                 .flatMap(similarityOperator);
 
+        Properties properties = new Properties();
+        properties.setProperty("bootstrap.servers", "localhost:9092");
+
+        FlinkKafkaProducer<String> myProducer = new FlinkKafkaProducer<>(
+                "my-topic",
+                new SimpleStringSchema(),
+                properties);
+
+        unfilteredSelfJoinedStream.map(FinalOutput::toString).addSink(myProducer);
+
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
 
+
+
+//        stream.addSink(myProducer);
         // Measure the average latency per tuple
 //        env.setParallelism(1);
 //        selfJoinedStream.map(new OneStepLatencyAverage());
