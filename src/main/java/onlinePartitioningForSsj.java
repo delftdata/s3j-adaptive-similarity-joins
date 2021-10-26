@@ -8,10 +8,7 @@ import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
 import Operators.SimilarityJoinSelf;
-import Utils.CustomFiltering;
-import Utils.LogicalKeySelector;
-import Utils.SimilarityJoinsUtil;
-import Utils.StreamFactory;
+import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -130,7 +127,7 @@ public class onlinePartitioningForSsj {
                 new SimpleStringSchema(),
                 properties);
 
-        unfilteredSelfJoinedStream.map(FinalOutput::toString).addSink(myProducer);
+        unfilteredSelfJoinedStream.map(new KafkaOutputReducer()).map(Tuple3<Long,Integer,Long>::toString).addSink(myProducer);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
