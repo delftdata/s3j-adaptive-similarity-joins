@@ -1,4 +1,4 @@
 from kafka import KafkaConsumer
-consumer = KafkaConsumer('my-topic')
+consumer = KafkaConsumer('pipeline-out')
 for msg in consumer:
 	print (msg)
