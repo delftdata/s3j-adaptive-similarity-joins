@@ -1,27 +1,35 @@
-import CustomDataTypes.FinalOutput;
-import CustomDataTypes.FinalTuple;
-import CustomDataTypes.InputTuple;
-import CustomDataTypes.SPTuple;
-import Operators.*;
-import Operators.AdaptivePartitioner.AdaptivePartitioner;
+import CustomDataTypes.*;
 import Operators.AdaptivePartitioner.AdaptiveCoPartitioner;
+import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
+import Operators.PhysicalPartitioner;
+import Operators.SimilarityJoin;
+import Operators.SimilarityJoinSelf;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.java.tuple.*;
+import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
+import org.apache.flink.api.common.typeinfo.TypeHint;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.util.OutputTag;
 import org.kohsuke.args4j.CmdLineParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 
@@ -41,7 +49,11 @@ public class onlinePartitioningForSsj {
         // Excecution environment details //
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-        StreamFactory streamFactory = new StreamFactory(env);
+        Properties properties = new Properties();
+        properties.setProperty("bootstrap.servers", "localhost:9092");
+
+        String leftInputTopic = "pipeline-in-left";
+        String rightInputTopic = "pipeline-in-right";
         env.setMaxParallelism(128);
         env.setParallelism(10);
         double dist_threshold = 0.1;
@@ -50,7 +62,7 @@ public class onlinePartitioningForSsj {
         // ========================================================================================================== //
 
         // OutputTags for sideOutputs. Used to extract information for statistics.
-        final OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
+        final OutputTag<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
                 new OutputTag<Tuple2<Integer,HashMap<Integer, Tuple3<Long, Integer, Double[]>>>>("logicalCentroids"){};
 
         final OutputTag<Tuple3<Long, Integer, Integer>> sideLP =
@@ -72,9 +84,9 @@ public class onlinePartitioningForSsj {
         // The space partitioning operator.
         // Here we partition the incoming data based on proximity of the given centroids and the given threshold.
         // Basically the partitioning is happening by augmenting tuples with key attributes.
-        DataStream<InputTuple> firstStream = streamFactory.createDataStream(options.getFirstStream());
+        DataStream<InputTuple> firstStream = env.addSource(new FlinkKafkaConsumer<>(leftInputTopic, new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getFirstStream());
         DataStream<SPTuple> ppData1 = firstStream.
-                flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1));
+                flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
 
         AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
         adaptivePartitionerCompanion.setSideLPartitions(sideLP);
@@ -82,14 +94,14 @@ public class onlinePartitioningForSsj {
 
         KeyedStream<SPTuple, Integer> keyedData = ppData1.keyBy(t -> t.f0);
         if (options.hasSecondStream()) {
-            DataStream<InputTuple> secondStream = streamFactory.createDataStream(options.getSecondStream());
+            DataStream<InputTuple> secondStream = env.addSource(new FlinkKafkaConsumer<>(rightInputTopic, new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getSecondStream());
 
             DataStream<SPTuple> ppData2 = secondStream.
-                    flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1));
+                    flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("secondSpacePartitioner");
 
             lpData = keyedData
                     .connect(ppData2.keyBy(t -> t.f0))
-                    .process(new AdaptiveCoPartitioner(adaptivePartitionerCompanion));
+                    .process(new AdaptiveCoPartitioner(adaptivePartitionerCompanion)).uid("adaptivePartitioner");
 
             similarityOperator = new SimilarityJoin(dist_threshold);
         } else {
@@ -99,7 +111,7 @@ public class onlinePartitioningForSsj {
             // Inside each machine tuples are grouped in threshold-based groups.
             // Again the grouping is happening by augmenting tuples with key attributes.
             lpData = keyedData
-                    .process(new AdaptivePartitioner(adaptivePartitionerCompanion));
+                    .process(new AdaptivePartitioner(adaptivePartitionerCompanion)).uid("adaptivePartitioner");
 
             similarityOperator = new SimilarityJoinSelf(dist_threshold);
         }
@@ -110,13 +122,23 @@ public class onlinePartitioningForSsj {
         SingleOutputStreamOperator<FinalOutput>
                 unfilteredSelfJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
-                .flatMap(similarityOperator);
+                .flatMap(similarityOperator).uid("similarityJoin");
+
+
+        String outputTopic = "pipeline-out";
+        FlinkKafkaProducer<ShortOutput> myProducer = new FlinkKafkaProducer<>(
+                outputTopic,
+                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<ShortOutput>() {}), env.getConfig()),
+                properties);
+
+        unfilteredSelfJoinedStream.map(new KafkaOutputReducer()).addSink(myProducer);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
 
+//        stream.addSink(myProducer);
         // Measure the average latency per tuple
 //        env.setParallelism(1);
 //        selfJoinedStream.map(new OneStepLatencyAverage());
