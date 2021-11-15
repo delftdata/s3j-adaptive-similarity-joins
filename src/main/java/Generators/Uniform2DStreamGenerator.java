@@ -13,6 +13,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 public class Uniform2DStreamGenerator implements SourceFunction<Tuple3<Long, Integer, Double[]>>, CheckpointedFunction {
 
@@ -67,6 +68,9 @@ public class Uniform2DStreamGenerator implements SourceFunction<Tuple3<Long, Int
                     timestamp++;
                     tRate = rate;
                 }
+            }
+            if(tRate == rate) {
+                TimeUnit.SECONDS.sleep(5);
             }
         }
     }
