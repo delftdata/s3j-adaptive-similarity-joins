@@ -1,11 +1,16 @@
 package Statistics;
 
 import CustomDataTypes.FinalOutput;
+import CustomDataTypes.GroupLevelShortOutput;
 import CustomDataTypes.ShortOutput;
 import Statistics.FinalComputations.CombineProcessFunction;
 import Statistics.FinalComputations.FinalComputationsReduce;
 import Statistics.FinalComputations.FinalComputationsStatsProcess;
+import Statistics.GroupLevelFinalComputations.GroupLevelCombineProcessFunction;
+import Statistics.GroupLevelFinalComputations.GroupLevelFinalComputationsReduce;
+import Statistics.GroupLevelFinalComputations.GroupLevelFinalComputationsStatsProcess;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -18,11 +23,17 @@ import java.util.List;
 
 public class LoadBalancingStats {
 
+    class GroupLevelStatsKeySelector implements KeySelector<GroupLevelShortOutput, Tuple2<Integer,Integer>>{
+        @Override
+        public Tuple2<Integer, Integer> getKey(GroupLevelShortOutput t) throws Exception {
+            return new Tuple2<>(t.f1, t.f2);
+        }
+    }
+
     public void prepareFinalComputationsPerMachine(SingleOutputStreamOperator<FinalOutput> mainStream,
                         FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>> myStatsProducer){
 
         //<------- comparisons by physical partition per window --------->
-        OutputTag<Tuple3<Long, Integer, Long>> lateJoin = new OutputTag<Tuple3<Long, Integer, Long>>("lateJoin"){};
         SingleOutputStreamOperator<Tuple2<Long, List<Tuple2<Integer, Long>>>> check =
         mainStream
                 .map(t -> new ShortOutput(t.f3, t.f1.f10, 1L))
@@ -32,6 +43,23 @@ public class LoadBalancingStats {
                 .reduce(new FinalComputationsReduce(),new FinalComputationsStatsProcess())
                 .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(5)))
                 .process(new CombineProcessFunction());
+
+        check.addSink(myStatsProducer);
+    }
+
+    public void prepareFinalComputationsPerGroup(
+            SingleOutputStreamOperator<FinalOutput> mainStream,
+            FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>> myStatsProducer
+    ){
+        SingleOutputStreamOperator<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>> check =
+                mainStream
+                        .map(t -> new GroupLevelShortOutput(t.f3, t.f1.f10, t.f1.f0, 1L))
+                        .returns(TypeInformation.of(GroupLevelShortOutput.class))
+                        .keyBy(new GroupLevelStatsKeySelector())
+                        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .reduce(new GroupLevelFinalComputationsReduce(),new GroupLevelFinalComputationsStatsProcess())
+                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .process(new GroupLevelCombineProcessFunction());
 
         check.addSink(myStatsProducer);
     }

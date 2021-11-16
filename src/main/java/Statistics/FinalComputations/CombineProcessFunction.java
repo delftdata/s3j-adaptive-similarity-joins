@@ -23,10 +23,8 @@ public class CombineProcessFunction extends ProcessAllWindowFunction<
             throws Exception {
 
         List<Tuple2<Integer, Long>> combined = new ArrayList<>();
-        Iterator<ShortOutput> inputIterator = iterable.iterator();
 
-        while(inputIterator.hasNext()){
-            ShortOutput tmp = inputIterator.next();
+        for (ShortOutput tmp : iterable) {
             combined.add(new Tuple2<>(tmp.f1, tmp.f2));
         }
         collector.collect(new Tuple2<>(context.window().getStart(), combined));

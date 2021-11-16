@@ -11,11 +11,11 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-public class ObjectSerializationSchema implements KafkaSerializationSchema<Tuple2<Long, List<Tuple2<Integer, Long>>>> {
+public class ObjectSerializationSchema<T> implements KafkaSerializationSchema<T> {
 
     private ObjectMapper mapper;
-    private String topic;
-    private String key;
+    private final String topic;
+    private final String key;
 
     public ObjectSerializationSchema(String key, String topic){
         super();
@@ -24,7 +24,7 @@ public class ObjectSerializationSchema implements KafkaSerializationSchema<Tuple
     }
 
     @Override
-    public ProducerRecord<byte[], byte[]> serialize(Tuple2<Long, List<Tuple2<Integer, Long>>> obj, Long timestamp) {
+    public ProducerRecord<byte[], byte[]> serialize(T obj, Long timestamp) {
         byte[] b = null;
         if (mapper == null) {
             mapper = new ObjectMapper();
