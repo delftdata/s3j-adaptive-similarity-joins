@@ -1,4 +1,4 @@
-package Statistics;
+package Statistics.FinalComputations;
 
 import CustomDataTypes.ShortOutput;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;

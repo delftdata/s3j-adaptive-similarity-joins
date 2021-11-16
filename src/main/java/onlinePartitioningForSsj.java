@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
@@ -136,10 +137,11 @@ public class onlinePartitioningForSsj {
                 properties);
 
         String outputStatsTopic = "pipeline-out-stats";
-        FlinkKafkaProducer<ShortOutput> myStatsProducer = new FlinkKafkaProducer<ShortOutput>(
-                outputStatsTopic,
-                new ObjectSerializationSchema(),
-                properties);
+        FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>> myStatsProducer =
+                new FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>>(
+                        outputStatsTopic,
+                        new ObjectSerializationSchema(),
+                        properties);
 
         LoadBalancingStats stats = new LoadBalancingStats();
         stats.prepare(unfilteredSelfJoinedStream, myStatsProducer);
