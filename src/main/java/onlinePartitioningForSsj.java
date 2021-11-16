@@ -140,11 +140,13 @@ public class onlinePartitioningForSsj {
         FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>> myStatsProducer =
                 new FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>>(
                         outputStatsTopic,
-                        new ObjectSerializationSchema(),
-                        properties);
+                        new ObjectSerializationSchema("final-comps-per-machine", outputStatsTopic),
+                        properties,
+                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
+                );
 
         LoadBalancingStats stats = new LoadBalancingStats();
-        stats.prepare(unfilteredSelfJoinedStream, myStatsProducer);
+        stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream, myStatsProducer);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream

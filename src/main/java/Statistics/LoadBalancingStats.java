@@ -18,7 +18,7 @@ import java.util.List;
 
 public class LoadBalancingStats {
 
-    public void prepare(SingleOutputStreamOperator<FinalOutput> mainStream,
+    public void prepareFinalComputationsPerMachine(SingleOutputStreamOperator<FinalOutput> mainStream,
                         FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>> myStatsProducer){
 
         //<------- comparisons by physical partition per window --------->
