@@ -14,6 +14,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -33,10 +34,10 @@ public class LoadBalancingStats {
         this.statsKafkaTopic = statsKafkaTopic;
     }
 
-    class GroupLevelStatsKeySelector implements KeySelector<GroupLevelShortOutput, Tuple2<Integer,Integer>>{
+    class GroupLevelStatsKeySelector implements KeySelector<GroupLevelShortOutput, Tuple3<Integer,Integer, Integer>>{
         @Override
-        public Tuple2<Integer, Integer> getKey(GroupLevelShortOutput t) throws Exception {
-            return new Tuple2<>(t.f1, t.f2);
+        public Tuple3<Integer, Integer, Integer> getKey(GroupLevelShortOutput t) throws Exception {
+            return new Tuple3<>(t.f3, t.f1, t.f2);
         }
     }
 
@@ -66,17 +67,17 @@ public class LoadBalancingStats {
 
     public void prepareFinalComputationsPerGroup(SingleOutputStreamOperator<FinalOutput> mainStream){
 
-        FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>> groupLevelFinalComputationsProducer =
-                new FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>>(
+        FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> groupLevelFinalComputationsProducer =
+                new FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(
                         statsKafkaTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>>("final-comps-per-group", statsKafkaTopic),
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>("final-comps-per-group", statsKafkaTopic),
                         properties,
                         FlinkKafkaProducer.Semantic.EXACTLY_ONCE
                 );
 
-        SingleOutputStreamOperator<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>> check =
+        SingleOutputStreamOperator<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> check =
                 mainStream
-                        .map(t -> new GroupLevelShortOutput(t.f3, t.f1.f10, t.f1.f0, 1L))
+                        .map(t -> new GroupLevelShortOutput(t.f3, t.f1.f10, t.f1.f2, t.f1.f0, 1L))
                         .returns(TypeInformation.of(GroupLevelShortOutput.class))
                         .keyBy(new GroupLevelStatsKeySelector())
                         .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
