@@ -137,24 +137,9 @@ public class onlinePartitioningForSsj {
                 properties);
 
         String outputStatsTopic = "pipeline-out-stats";
-        FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>> myStatsProducer =
-                new FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>>(
-                        outputStatsTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple2<Integer, Long>>>>("final-comps-per-machine", outputStatsTopic),
-                        properties,
-                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
-                );
-        FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>> groupLevelFinalComputationsProducer =
-                new FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>>(
-                        outputStatsTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>>("final-comps-per-group", outputStatsTopic),
-                        properties,
-                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
-                );
-
-        LoadBalancingStats stats = new LoadBalancingStats();
-        stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream, myStatsProducer);
-        stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream, groupLevelFinalComputationsProducer);
+        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic);
+        stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
+        stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream

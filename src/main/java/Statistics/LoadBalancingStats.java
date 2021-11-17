@@ -9,6 +9,7 @@ import Statistics.FinalComputations.FinalComputationsStatsProcess;
 import Statistics.GroupLevelFinalComputations.GroupLevelCombineProcessFunction;
 import Statistics.GroupLevelFinalComputations.GroupLevelFinalComputationsReduce;
 import Statistics.GroupLevelFinalComputations.GroupLevelFinalComputationsStatsProcess;
+import Utils.ObjectSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -20,8 +21,17 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.util.OutputTag;
 
 import java.util.List;
+import java.util.Properties;
 
 public class LoadBalancingStats {
+
+    private final Properties properties;
+    private final String statsKafkaTopic;
+
+    public LoadBalancingStats(Properties properties, String statsKafkaTopic){
+        this.properties = properties;
+        this.statsKafkaTopic = statsKafkaTopic;
+    }
 
     class GroupLevelStatsKeySelector implements KeySelector<GroupLevelShortOutput, Tuple2<Integer,Integer>>{
         @Override
@@ -30,8 +40,15 @@ public class LoadBalancingStats {
         }
     }
 
-    public void prepareFinalComputationsPerMachine(SingleOutputStreamOperator<FinalOutput> mainStream,
-                        FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>> myStatsProducer){
+    public void prepareFinalComputationsPerMachine(SingleOutputStreamOperator<FinalOutput> mainStream){
+
+        FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>> myStatsProducer =
+                new FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>>(
+                        statsKafkaTopic,
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple2<Integer, Long>>>>("final-comps-per-machine", statsKafkaTopic),
+                        properties,
+                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
+                );
 
         //<------- comparisons by physical partition per window --------->
         SingleOutputStreamOperator<Tuple2<Long, List<Tuple2<Integer, Long>>>> check =
@@ -47,10 +64,16 @@ public class LoadBalancingStats {
         check.addSink(myStatsProducer);
     }
 
-    public void prepareFinalComputationsPerGroup(
-            SingleOutputStreamOperator<FinalOutput> mainStream,
-            FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>> myStatsProducer
-    ){
+    public void prepareFinalComputationsPerGroup(SingleOutputStreamOperator<FinalOutput> mainStream){
+
+        FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>> groupLevelFinalComputationsProducer =
+                new FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>>(
+                        statsKafkaTopic,
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>>("final-comps-per-group", statsKafkaTopic),
+                        properties,
+                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
+                );
+
         SingleOutputStreamOperator<Tuple2<Long, List<Tuple3<Integer, Integer, Long>>>> check =
                 mainStream
                         .map(t -> new GroupLevelShortOutput(t.f3, t.f1.f10, t.f1.f0, 1L))
@@ -61,7 +84,7 @@ public class LoadBalancingStats {
                         .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(5)))
                         .process(new GroupLevelCombineProcessFunction());
 
-        check.addSink(myStatsProducer);
+        check.addSink(groupLevelFinalComputationsProducer);
     }
 
 }
