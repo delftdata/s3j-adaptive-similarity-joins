@@ -140,6 +140,7 @@ public class onlinePartitioningForSsj {
         LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic);
         stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
         stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
+        stats.prepareSizePerGroup(lpData);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream

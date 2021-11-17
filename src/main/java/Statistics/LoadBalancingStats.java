@@ -1,6 +1,7 @@
 package Statistics;
 
 import CustomDataTypes.FinalOutput;
+import CustomDataTypes.FinalTuple;
 import CustomDataTypes.GroupLevelShortOutput;
 import CustomDataTypes.ShortOutput;
 import Statistics.FinalComputations.CombineProcessFunction;
@@ -19,7 +20,6 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
-import org.apache.flink.util.OutputTag;
 
 import java.util.List;
 import java.util.Properties;
@@ -86,6 +86,29 @@ public class LoadBalancingStats {
                         .process(new GroupLevelCombineProcessFunction());
 
         check.addSink(groupLevelFinalComputationsProducer);
+    }
+
+    public void prepareSizePerGroup(SingleOutputStreamOperator<FinalTuple> mainStream){
+
+        FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> groupSizeProducer =
+                new FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(
+                        statsKafkaTopic,
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>("size-per-group", statsKafkaTopic),
+                        properties,
+                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
+                );
+
+        SingleOutputStreamOperator<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> check =
+                mainStream
+                        .map(t -> new GroupLevelShortOutput(t.f7, t.f10, t.f2, t.f0, Long.valueOf(t.size())))
+                        .returns(TypeInformation.of(GroupLevelShortOutput.class))
+                        .keyBy(new GroupLevelStatsKeySelector())
+                        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .reduce(new GroupLevelFinalComputationsReduce(),new GroupLevelFinalComputationsStatsProcess())
+                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .process(new GroupLevelCombineProcessFunction());
+
+        check.addSink(groupSizeProducer);
     }
 
 }

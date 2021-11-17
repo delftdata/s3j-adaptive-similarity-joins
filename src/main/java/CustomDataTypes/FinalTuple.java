@@ -13,5 +13,9 @@ public class FinalTuple extends Tuple12<Integer,String,Integer,String,Integer,In
     }
 
 
+    public Integer size(){
+        return (Integer.BYTES * 6) + (Long.BYTES * 2) + (this.f9.length * Double.BYTES) + this.f1.getBytes().length + this.f3.getBytes().length + this.f11.getBytes().length;
+    }
+
 
 }
