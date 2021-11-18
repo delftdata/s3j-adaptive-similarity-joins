@@ -2,14 +2,12 @@ package Statistics.GroupLevelFinalComputations;
 
 import CustomDataTypes.GroupLevelShortOutput;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.functions.windowing.ProcessAllWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 public class GroupLevelCombineProcessFunction extends ProcessAllWindowFunction<

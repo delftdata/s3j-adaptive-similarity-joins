@@ -131,10 +131,11 @@ public class onlinePartitioningForSsj {
 
 
         String outputTopic = "pipeline-out";
-        FlinkKafkaProducer<ShortOutput> myProducer = new FlinkKafkaProducer<>(
+        FlinkKafkaProducer<ShortFinalOutput> myProducer = new FlinkKafkaProducer<>(
                 outputTopic,
-                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<ShortOutput>() {}), env.getConfig()),
-                properties);
+                new ObjectSerializationSchema<ShortFinalOutput>("final-filtered-output", outputTopic),
+                properties,
+                FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
 
         String outputStatsTopic = "pipeline-out-stats";
         LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic);
@@ -146,6 +147,7 @@ public class onlinePartitioningForSsj {
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
+        selfJoinedStream.map(new ShortFinalOutputMapper()).addSink(myProducer);
 
 //        stream.addSink(myProducer);
         // Measure the average latency per tuple
