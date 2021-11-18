@@ -4,6 +4,8 @@ import org.apache.flink.api.java.tuple.Tuple5;
 
 public class ShortFinalOutput extends Tuple5<Long, Long, Integer, Integer, Integer> {
 
+    public ShortFinalOutput(){}
+
     public ShortFinalOutput(
             Long outputProcessingTime,
             Long inputProcessingTime,
