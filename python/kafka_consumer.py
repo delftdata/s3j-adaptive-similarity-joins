@@ -21,13 +21,13 @@ for msg in consumer:
 
 	if machine_level_computations_flag and group_level_computations_flag and group_level_size_flag:
 		print("Final Computations per Machine\n")
-		print(machine_level_computations_info)
+		print(eval(machine_level_computations_info))
 		print("\n")
 		print("Final Computations per Group\n")
-		print(group_level_computations_info)
+		print(eval(group_level_computations_info))
 		print("\n")
 		print("Size per Group\n")
-		print(group_level_size_info)
+		print(eval(group_level_size_info))
 		print("\n***************************************\n")
 		machine_level_computations_flag = False
 		group_level_computations_flag = False

@@ -28,10 +28,12 @@ public class LoadBalancingStats {
 
     private final Properties properties;
     private final String statsKafkaTopic;
+    private final int windowLength;
 
-    public LoadBalancingStats(Properties properties, String statsKafkaTopic){
+    public LoadBalancingStats(Properties properties, String statsKafkaTopic, int windowLength){
         this.properties = properties;
         this.statsKafkaTopic = statsKafkaTopic;
+        this.windowLength = windowLength;
     }
 
     class GroupLevelStatsKeySelector implements KeySelector<GroupLevelShortOutput, Tuple3<Integer,Integer, Integer>>{
@@ -57,9 +59,9 @@ public class LoadBalancingStats {
                 .map(t -> new ShortOutput(t.f3, t.f1.f10, 1L))
                 .returns(TypeInformation.of(ShortOutput.class))
                 .keyBy(t -> t.f1)
-                .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                .window(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
                 .reduce(new FinalComputationsReduce(),new FinalComputationsStatsProcess())
-                .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
                 .process(new CombineProcessFunction());
 
         check.addSink(myStatsProducer);
@@ -80,9 +82,9 @@ public class LoadBalancingStats {
                         .map(t -> new GroupLevelShortOutput(t.f3, t.f1.f10, t.f1.f2, t.f1.f0, 1L))
                         .returns(TypeInformation.of(GroupLevelShortOutput.class))
                         .keyBy(new GroupLevelStatsKeySelector())
-                        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .window(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
                         .reduce(new GroupLevelFinalComputationsReduce(),new GroupLevelFinalComputationsStatsProcess())
-                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
                         .process(new GroupLevelCombineProcessFunction());
 
         check.addSink(groupLevelFinalComputationsProducer);
@@ -103,9 +105,9 @@ public class LoadBalancingStats {
                         .map(t -> new GroupLevelShortOutput(t.f7, t.f10, t.f2, t.f0, Long.valueOf(t.size())))
                         .returns(TypeInformation.of(GroupLevelShortOutput.class))
                         .keyBy(new GroupLevelStatsKeySelector())
-                        .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .window(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
                         .reduce(new GroupLevelFinalComputationsReduce(),new GroupLevelFinalComputationsStatsProcess())
-                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
                         .process(new GroupLevelCombineProcessFunction());
 
         check.addSink(groupSizeProducer);

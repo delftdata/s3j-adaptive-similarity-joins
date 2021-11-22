@@ -70,7 +70,7 @@ public class Uniform2DStreamGenerator implements SourceFunction<Tuple3<Long, Int
                 }
             }
             if(tRate == rate) {
-                TimeUnit.SECONDS.sleep(5);
+                TimeUnit.SECONDS.sleep(20);
             }
         }
     }
