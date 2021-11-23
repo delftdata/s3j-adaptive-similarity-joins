@@ -5,10 +5,8 @@ import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
 import Operators.SimilarityJoinSelf;
-import Statistics.LoadBalancingStats;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -90,9 +88,7 @@ public class onlinePartitioningForSsj {
         // The space partitioning operator.
         // Here we partition the incoming data based on proximity of the given centroids and the given threshold.
         // Basically the partitioning is happening by augmenting tuples with key attributes.
-        DataStream<InputTuple> firstStream = env.addSource(new FlinkKafkaConsumer<>(
-                leftInputTopic,
-                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getFirstStream());
+        DataStream<InputTuple> firstStream = env.addSource(new FlinkKafkaConsumer<>(leftInputTopic, new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getFirstStream());
         DataStream<SPTuple> ppData1 = firstStream.
                 flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
 
@@ -139,14 +135,7 @@ public class onlinePartitioningForSsj {
                 new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<ShortOutput>() {}), env.getConfig()),
                 properties);
 
-        String outputStatsTopic = "pipeline-out-stats";
-        FlinkKafkaProducer<ShortOutput> myStatsProducer = new FlinkKafkaProducer<ShortOutput>(
-                outputStatsTopic,
-                new ObjectSerializationSchema(),
-                properties);
-
-        LoadBalancingStats stats = new LoadBalancingStats();
-        stats.prepare(unfilteredSelfJoinedStream, myStatsProducer);
+        unfilteredSelfJoinedStream.map(new KafkaOutputReducer()).addSink(myProducer);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
