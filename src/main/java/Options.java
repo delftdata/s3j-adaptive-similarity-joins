@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Options {
+    @Option(name="-kafkaURL", usage="URL to kafka", required=true)
+    private String kafkaURL = "";
+
     @Option(name="-twoStreams", usage="Whether to expect two streams")
     private boolean twoStreams = false;
 
@@ -13,6 +16,7 @@ public class Options {
 
     @Option(name="-centroidsNum", usage="Number of centroids to use.")
     private int centroidsNum = 10;
+
 
     // Getters, setters, etc
     public boolean hasSecondStream() { return twoStreams; }
@@ -24,4 +28,6 @@ public class Options {
     public int getCentroidsNum() {
         return centroidsNum;
     }
+
+    public String getKafkaURL() { return kafkaURL; }
 }
