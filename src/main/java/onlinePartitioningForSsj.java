@@ -47,10 +47,14 @@ public class onlinePartitioningForSsj {
         parser.parseArgument(args);
 
         // Excecution environment details //
+//        Configuration config = new Configuration();
+//        config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
+//        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
+
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         Properties properties = new Properties();
-        properties.setProperty("bootstrap.servers", "localhost:9092");
+        properties.setProperty("bootstrap.servers", options.getKafkaURL());
 
         String leftInputTopic = "pipeline-in-left";
         String rightInputTopic = "pipeline-in-right";
