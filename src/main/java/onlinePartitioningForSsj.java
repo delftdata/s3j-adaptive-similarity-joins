@@ -142,12 +142,13 @@ public class onlinePartitioningForSsj {
         stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
         stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
         stats.prepareSizePerGroup(lpData);
+        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
-        selfJoinedStream.map(new ShortFinalOutputMapper()).addSink(myProducer);
+//        unfilteredSelfJoinedStream.map(new ShortFinalOutputMapper()).addSink(myProducer);
 
 //        stream.addSink(myProducer);
         // Measure the average latency per tuple

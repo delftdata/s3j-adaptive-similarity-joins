@@ -1,4 +1,4 @@
-package Statistics;
+package Statistics.Latency;
 
 import CustomDataTypes.FinalOutput;
 import org.apache.flink.api.common.functions.MapFunction;

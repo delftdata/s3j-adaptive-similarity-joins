@@ -10,7 +10,11 @@ import Statistics.FinalComputations.FinalComputationsStatsProcess;
 import Statistics.GroupLevelFinalComputations.GroupLevelCombineProcessFunction;
 import Statistics.GroupLevelFinalComputations.GroupLevelFinalComputationsReduce;
 import Statistics.GroupLevelFinalComputations.GroupLevelFinalComputationsStatsProcess;
+import Statistics.Latency.LatencyAggregate;
+import Statistics.Latency.LatencyCombine;
+import Statistics.Latency.LatencyProcess;
 import Utils.ObjectSerializationSchema;
+import Utils.ShortFinalOutputMapper;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -20,6 +24,7 @@ import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
+import org.apache.flink.util.OutputTag;
 
 import java.util.List;
 import java.util.Properties;
@@ -54,12 +59,14 @@ public class LoadBalancingStats {
                 );
 
         //<------- comparisons by physical partition per window --------->
+        OutputTag<ShortOutput> lateMachine = new OutputTag<ShortOutput>("lateMachine"){};
         SingleOutputStreamOperator<Tuple2<Long, List<Tuple2<Integer, Long>>>> check =
         mainStream
                 .map(t -> new ShortOutput(t.f3, t.f1.f10, 1L))
                 .returns(TypeInformation.of(ShortOutput.class))
                 .keyBy(t -> t.f1)
                 .window(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
+                .sideOutputLateData(lateMachine)
                 .reduce(new FinalComputationsReduce(),new FinalComputationsStatsProcess())
                 .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
                 .process(new CombineProcessFunction());
@@ -111,6 +118,29 @@ public class LoadBalancingStats {
                         .process(new GroupLevelCombineProcessFunction());
 
         check.addSink(groupSizeProducer);
+    }
+
+    public void prepareLatencyPerMachine(SingleOutputStreamOperator<FinalOutput> mainStream){
+
+        FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Long, Long>>>> averageLatencyPerMachine =
+                new FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Long, Long>>>>(
+                        statsKafkaTopic,
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple3<Integer, Long, Long>>>>("av-latency-per-machine", statsKafkaTopic),
+                        properties,
+                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
+                );
+
+        SingleOutputStreamOperator<Tuple2<Long, List<Tuple3<Integer, Long, Long>>>> check =
+                mainStream
+                        .map(new ShortFinalOutputMapper())
+                        .keyBy(t -> t.f4)
+                        .window(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
+                        .aggregate(new LatencyAggregate(), new LatencyProcess())
+                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
+                        .process(new LatencyCombine());
+
+        check.addSink(averageLatencyPerMachine);
+
     }
 
 }
