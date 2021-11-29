@@ -4,6 +4,7 @@ import json
 import time
 import os
 from flask import jsonify
+from minio import Minio
 
 app = Flask(__name__)
 
@@ -25,7 +26,7 @@ job_ids = {}
 def hello():
     return 'Hello world'
 
-@app.route('/stop-and-create-savepoint')
+@app.route('/migrate')
 def stop_and_checkpoint():
     r = requests.get(f'{BASE_URL}/jobs')
     jobs = [j for j in r.json()["jobs"] if j["status"]=="RUNNING"]
@@ -34,7 +35,7 @@ def stop_and_checkpoint():
         return "No jobs to stop..."
 
     payload = {
-            "targetDirectory" : FS_PATH,
+            "targetDirectory" : FS_PATH + '/' + str(job_id),
             "drain": False
     }
 
@@ -82,7 +83,7 @@ def stop_and_checkpoint():
 
 # This route returns an error even though the job starts correctly
 # Similar problem: https://stackoverflow.com/questions/58447465/flink-job-submission-fails-even-though-job-is-running
-@app.route('/start-join-job')
+@app.route('/start')
 def start_join_job():
     properties = {"programArgsList" : ["-kafkaURL", KAFKA_URL]}
     if save_point_path:
@@ -92,8 +93,9 @@ def start_join_job():
     return r.json()
 
 
-@app.route('/setup-jars')
-def setup_jars():
+@app.route('/setup')
+def setup():
+    # Send jars
     r = requests.get(f"{BASE_URL}/jars")
     files = r.json()["files"]
     R = []
@@ -108,6 +110,11 @@ def setup_jars():
         upload = requests.post(f"{BASE_URL}/jars/upload", files=file)
         job_ids[jar_path] = os.path.basename(upload.json()["filename"])
         R.append(upload.json())
+
+    # Create bucket
+    minio_client = Minio("minio:9000", access_key="minio", secret_key="minio123", secure=False)
+    if not minio_client.bucket_exists("flink"):
+        minio_client.make_bucket("flink")
 
     return jsonify(R)
 

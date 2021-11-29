@@ -11,7 +11,8 @@ spec:
     spec:
       containers:
       - name: flask
-        image: archer6621/flask
+        image: coordinator
+        imagePullPolicy: Never
         ports:
         - containerPort: 5000
   selector:
