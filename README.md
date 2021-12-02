@@ -24,4 +24,4 @@ To reset a deployment, it is usually enough to just delete it and re-run its dep
 - `<address>/migrate`: (still WIP) stops the join job, creates a savepoint, then starts the migration job and waits for it to finish. Once it is finished, it resumes the join job.
 
 ### Docker Images
-Currently the only relevant image is the one in the `coordinator` folder. For now, you can just build it whenever you change the API (`,/coordinator/src/app.py` and it should use the local version first. Beware, this works for Minikube only.
+Currently the only relevant image is the one in the `coordinator` folder. For now, you can just build it whenever you change the API (`./coordinator/src/app.py`) and it should use the local version first. Beware, this works for Minikube only.
