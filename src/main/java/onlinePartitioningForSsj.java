@@ -5,8 +5,10 @@ import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
 import Operators.SimilarityJoinSelf;
+import Statistics.LoadBalancingStats;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
@@ -92,7 +95,9 @@ public class onlinePartitioningForSsj {
         // The space partitioning operator.
         // Here we partition the incoming data based on proximity of the given centroids and the given threshold.
         // Basically the partitioning is happening by augmenting tuples with key attributes.
-        DataStream<InputTuple> firstStream = env.addSource(new FlinkKafkaConsumer<>(leftInputTopic, new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getFirstStream());
+        DataStream<InputTuple> firstStream = env.addSource(new FlinkKafkaConsumer<>(
+                leftInputTopic,
+                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getFirstStream());
         DataStream<SPTuple> ppData1 = firstStream.
                 flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
 
@@ -134,17 +139,24 @@ public class onlinePartitioningForSsj {
 
 
         String outputTopic = "pipeline-out";
-        FlinkKafkaProducer<ShortOutput> myProducer = new FlinkKafkaProducer<>(
+        FlinkKafkaProducer<ShortFinalOutput> myProducer = new FlinkKafkaProducer<>(
                 outputTopic,
-                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<ShortOutput>() {}), env.getConfig()),
-                properties);
+                new ObjectSerializationSchema<ShortFinalOutput>("final-filtered-output", outputTopic),
+                properties,
+                FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
 
-        unfilteredSelfJoinedStream.map(new KafkaOutputReducer()).addSink(myProducer);
+        String outputStatsTopic = "pipeline-out-stats";
+        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic, 20);
+        stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
+        stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
+        stats.prepareSizePerGroup(lpData);
+        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
                 .process(new CustomFiltering(sideStats));
 
+//        unfilteredSelfJoinedStream.map(new ShortFinalOutputMapper()).addSink(myProducer);
 
 //        stream.addSink(myProducer);
         // Measure the average latency per tuple
