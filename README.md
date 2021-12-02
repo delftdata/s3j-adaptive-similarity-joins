@@ -12,7 +12,7 @@
 1. Run `./kubernetes/start-everything.sh` 
 2. Usually, this takes a while.. And Flink might not start after MinIO, which will cause it to break. If you see that the Flink deployment is all red in the dashboard, just run the Flink deployment script separately later (`./kubernetes/deploy-flink.sh`). Once MinIO is up, you can restart Flink without issue.
 4. Open a new terminal, run `minikube tunnel`
-5. Open a new terminal, run `./kubernetes/port-forward-minio.sh`
+5. Open a new terminal, run `./kubernetes/port-forward-minio.sh`. You can now visit MinIO's dashboard at `localhost:9000` (`minio, minio123`)
 
 After this, you may either type `kubectl get svc` or go to the `services` category on the Kubernetes dashboard to get the relevant external cluster IPs for the dashboard of Flink (port 8081) and the Flask API. Minio's dashboard can be found under `localhost:9000` after the port-forward.
 
