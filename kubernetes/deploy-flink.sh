@@ -10,3 +10,4 @@ $FLINK_HOME/bin/kubernetes-session.sh \
 	-Dtaskmanager.numberOfTaskSlots=10 \
 	-Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.12.5.jar \
     -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.12.5.jar
+kubectl patch deployment my-first-flink-cluster --type json -p '[{"op": "add", "path": "/spec/template/spec/containers/0/envFrom", "value": [{"configMapRef": {"name": "env-config"}}] }]'

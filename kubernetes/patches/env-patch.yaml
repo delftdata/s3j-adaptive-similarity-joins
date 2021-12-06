@@ -1,0 +1,12 @@
+spec:
+  template:
+    spec:
+      containers:
+        envFrom:
+        - configMapRef:
+            name: env-config
+
+
+'{"spec":{"template":{"spec":{"containers":[{"envFrom":["myname"]}]}}}}' 
+
+--type json -p '[{"op": "add", "path": "/spec/template/spec/containers/0/envFrom", "value": {"mountPath": "/etc/ssl/certs/java/cacerts", "subPath": "cacerts", "name": "cacerts"}}]'
