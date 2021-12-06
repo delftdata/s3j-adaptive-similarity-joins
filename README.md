@@ -1,5 +1,17 @@
 # onlinePartitioningForSsj
 
+## Submodules
+
+This project has two submodules:
+- Coordinator
+- Monitor
+
+To initialize them properly, perform the following two commands after cloning:
+```
+git submodule init
+git submodule update
+```
+
 ## Kubernetes Setup Instructions
 
 ### Requirements
