@@ -25,7 +25,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: coordinator-service
+  name: coordinator
 spec:
   ports:
   - port: 5000
