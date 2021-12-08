@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitor
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: monitor
+    spec:
+      containers:
+      - name: monitor
+        image: monitor
+        imagePullPolicy: Never
+        envFrom:
+        - configMapRef:
+            name: env-config
+  selector:
+    matchLabels:
+      app: monitor

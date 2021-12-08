@@ -50,7 +50,7 @@ public class StreamGenerator {
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         StreamFactory streamFactory = new StreamFactory(env);
         Properties properties = new Properties();
-        properties.setProperty("bootstrap.servers", "localhost:9092");
+        properties.setProperty("bootstrap.servers", options.getKafkaURL());
 
         String leftOutputTopic = "pipeline-in-left";
         String rightOutputTopic = "pipeline-in-right";

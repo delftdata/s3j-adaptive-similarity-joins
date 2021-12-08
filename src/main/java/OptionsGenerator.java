@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OptionsGenerator {
+    @Option(name="-kafkaURL", usage="URL to kafka")
+    private String kafkaURL = "localhost:9002";
 
     // All option-less arguments
     @Argument
@@ -20,4 +22,6 @@ public class OptionsGenerator {
     public String getSecondStream() {
         return streams.get(1);
     }
+
+    public String getKafkaURL() { return kafkaURL; }
 }
