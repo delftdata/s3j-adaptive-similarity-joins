@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-kubectl apply -f deployments/coordinator.yaml
+k3s kubectl apply -f deployments/coordinator.yaml

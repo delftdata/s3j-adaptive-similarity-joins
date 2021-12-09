@@ -1,6 +1,6 @@
 #!/bin/bash
 
-kubectl create configmap env-config --from-env-file=./environment/.env
+k3s kubectl create configmap env-config --from-env-file=./environment/.env
 
 ./deploy-minio.sh
 ./deploy-kafka.sh
