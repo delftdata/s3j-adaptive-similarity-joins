@@ -146,11 +146,13 @@ public class onlinePartitioningForSsj {
                 FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
 
         String outputStatsTopic = "pipeline-out-stats";
-        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic, 20);
+        String allLatenciesTopic = "all-latencies";
+        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic, allLatenciesTopic,20);
         stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
         stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
         stats.prepareSizePerGroup(lpData);
         stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
+        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
