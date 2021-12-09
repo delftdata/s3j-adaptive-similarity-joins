@@ -1,5 +1,4 @@
 #!/bin/bash
-./minikube-restart.sh
 
 kubectl create configmap env-config --from-env-file=./environment/.env
 
@@ -10,5 +9,3 @@ kubectl create configmap env-config --from-env-file=./environment/.env
 
 # Might need a wait loop for MinIO? Unless the service is up immediately
 ./deploy-flink.sh
-
-minikube dashboard

@@ -11,8 +11,7 @@ spec:
     spec:
       containers:
       - name: coordinator
-        image: coordinator
-        imagePullPolicy: Never
+        image: archer6621/ssj-coordinator
         ports:
         - containerPort: 5000
         envFrom:

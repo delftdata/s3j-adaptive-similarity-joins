@@ -11,8 +11,7 @@ spec:
     spec:
       containers:
       - name: monitor
-        image: monitor
-        imagePullPolicy: Never
+        image: archer6621/ssj-monitor
         envFrom:
         - configMapRef:
             name: env-config
