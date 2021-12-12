@@ -12,7 +12,7 @@ git submodule init
 git submodule update
 ```
 
-## Kubernetes Setup Instructions
+## Kubernetes Minikube Setup Instructions
 
 ### Requirements
 - A Kubernetes cluster (or an emulator, e.g. [Minikube](https://minikube.sigs.k8s.io/docs/start/))
@@ -33,7 +33,40 @@ To reset a deployment, it is usually enough to just delete it and re-run its dep
 ### API (port 5000)
 - `<address>/setup`: sends the job and migration (currently placeholder) jars to Flink
 - `<address>/start`: starts the distributed join job, it will throw an error but the job runs anyway if you check the dashboard
-- `<address>/migrate`: (still WIP) stops the join job, creates a savepoint, then starts the migration job and waits for it to finish. Once it is finished, it resumes the join job.
+- `<address>/stop`: stops the join job and creates a savepoint
+- `<address>/migrate`: starts the migration job and waits for it to finish. Once it is finished, it resumes the join job.
+- `<address>/jobs`: gets the jobs that are currently running, mostly for debug
 
 ### Docker Images
 Currently the only relevant image is the one in the `coordinator` folder. For now, you can just build it whenever you change the API (`./coordinator/src/app.py`) and it should use the local version first. Beware, this works for Minikube only.
+
+
+
+## K3s cluster instructions
+
+### Managing the deployments
+The `kubernetes` folder has a `redeploy-*.sh` script for every deployment, which takes the deployment down and restarts it. This should in principle completely reset that particular deployment.
+
+If nothing is running yet, use `start-everything.sh` to bring all deployments up.
+
+
+### Getting the addresses in order to interact with the services
+To see which ports and addresses can be used to connect to externally, use `sudo k3s kubectl get all svc` to view the addresses, specifically you want the ones under `EXTERNAL-IP`. Some services may show up to 4 addresses, in such cases you can use any of them.
+
+### Change docker images
+In order to change the images used for the coordinator and the stat monitor, check the deployment files:
+- coordinator: `./kubernetes/deployments/coordinator.yaml`
+- stat monitor: `./kubernetes/deployments/monitor.yaml`
+
+In both of them, look for the `image:` property, and replace that with a reference to your own version of the image.
+
+You should be able to build the images from the `stat monitor` and `coordinator` repositories and push them under your own username on dockerhub, in case you need to make adjustments (e.g. to the algorithm used for the stat monitor).
+
+
+### Managing the Flink jobs
+The API is the same as above, except now you need to do curl requests to the external IP of the coordinator service, e.g.:
+```
+curl http://<COORDINATOR_IP>:5000/setup
+```
+
+Remember to first call `setup` in case the flink cluster is fresh, so it has the jars needed for the jobs. Then you may call the `start` route to start the join job.
