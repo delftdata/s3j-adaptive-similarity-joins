@@ -44,6 +44,8 @@ Currently the only relevant image is the one in the `coordinator` folder. For no
 
 ## K3s cluster instructions
 
+**IMPORTANT:** Run ALL commands with `sudo`!!
+
 ### Managing the deployments
 The `kubernetes` folder has a `redeploy-*.sh` script for every deployment, which takes the deployment down and restarts it. This should in principle completely reset that particular deployment.
 
