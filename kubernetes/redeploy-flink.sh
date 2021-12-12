@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
+set -o allexport
 source ./environment/dependencies.env
+set +o allexport
+
 $KUBECTL delete deploy my-first-flink-cluster
 $KUBECTL create clusterrolebinding flink-role-binding-default --clusterrole=edit --serviceaccount=default:default
 $FLINK_HOME/bin/kubernetes-session.sh \

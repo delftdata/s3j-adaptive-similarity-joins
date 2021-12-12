@@ -1,5 +1,8 @@
 #!/bin/bash
+set -o allexport
 source ./environment/dependencies.env
+set +o allexport
+
 
 $KUBECTL create configmap env-config --from-env-file=./environment/.env
 
