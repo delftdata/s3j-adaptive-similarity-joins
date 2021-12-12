@@ -51,6 +51,15 @@ The `kubernetes` folder has a `redeploy-*.sh` script for every deployment, which
 
 If nothing is running yet, use `start-everything.sh` to bring all deployments up.
 
+### Checking deployment status
+You can use the script that is provided, after starting everything: `check-deployments.sh`
+
+You can also inspect further with the following commands:
+- `sudo k3s kubectl get deployments --all-namespaces`
+- `sudo k3s kubectl get pods --all-namespaces`
+- `sudo k3s kubectl get svc --all-namespaces`
+
+et cetera.
 
 ### Getting the addresses in order to interact with the services
 To see which ports and addresses can be used to connect to externally, use `sudo k3s kubectl get all svc` to view the addresses, specifically you want the ones under `EXTERNAL-IP`. Some services may show up to 4 addresses, in such cases you can use any of them.
