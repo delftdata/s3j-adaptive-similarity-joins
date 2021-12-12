@@ -1,11 +1,15 @@
 #!/bin/bash
+source ./environment/dependencies.env
 
-k3s kubectl create configmap env-config --from-env-file=./environment/.env
+$KUBECTL create configmap env-config --from-env-file=./environment/.env
 
-./deploy-minio.sh
-./deploy-kafka.sh
-./deploy-coordinator.sh
-./deploy-monitor.sh
+./redeploy-minio.sh
+./redeploy-kafka.sh
+./redeploy-coordinator.sh
+./redeploy-monitor.sh
 
-# Might need a wait loop for MinIO? Unless the service is up immediately
-./deploy-flink.sh
+while [[ -z "$($KUBECTL get svc minio | awk '{print $3}')" ]]; do 
+	echo 'MinIO service has no cluster IP yet, waiting...'
+	sleep 1
+done
+./redeploy-flink.sh

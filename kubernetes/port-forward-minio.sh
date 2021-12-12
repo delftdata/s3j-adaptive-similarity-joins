@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-kubectl port-forward service/minio 9000
+source ./environment/dependencies.env
+k3s kubectl port-forward service/minio 9000
