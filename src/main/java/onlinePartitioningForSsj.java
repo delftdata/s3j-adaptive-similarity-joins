@@ -152,7 +152,7 @@ public class onlinePartitioningForSsj {
         stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
         stats.prepareSizePerGroup(lpData);
         stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
-        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream);
+        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream, 1.0);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream

@@ -169,7 +169,8 @@ public class LoadBalancingStats {
 
     }
 
-    public void prepareSampledLatencyPercentilesPerMachine(SingleOutputStreamOperator<FinalOutput> mainStream){
+    public void prepareSampledLatencyPercentilesPerMachine(SingleOutputStreamOperator<FinalOutput> mainStream,
+                                                           double samplingProbability){
 
         FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, List<Tuple2<String, Long>>>>>> averageLatencyPercentiles =
                 new FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, List<Tuple2<String, Long>>>>>>(
@@ -181,7 +182,7 @@ public class LoadBalancingStats {
 
         SingleOutputStreamOperator<Tuple2<Long, List<Tuple2<Integer, List<Tuple2<String, Long>>>>>> check =
                 mainStream
-                        .process(new BernoulliSampling(0.2))
+                        .process(new BernoulliSampling(samplingProbability))
                         .map(t -> new Tuple4<Long, Integer, Long, Long>(t.f3, t.f1.f2, t.f1.f7, t.f2.f7))
                         .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Integer, Long, Long>>() {}))
                         .keyBy(t -> t.f1)
