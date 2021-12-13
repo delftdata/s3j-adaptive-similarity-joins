@@ -31,6 +31,6 @@ public class LatencyMeasure extends KeyedProcessFunction<
         }
         collector.collect(
                 new Tuple2<Integer, Long>(
-                            item.f1, start_time - item.f0));
+                            item.f1, item.f0 - start_time));
     }
 }
