@@ -8,6 +8,7 @@ import Operators.SimilarityJoinSelf;
 import Statistics.LoadBalancingStats;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -97,7 +98,8 @@ public class onlinePartitioningForSsj {
         // Basically the partitioning is happening by augmenting tuples with key attributes.
         DataStream<InputTuple> firstStream = env.addSource(new FlinkKafkaConsumer<>(
                 leftInputTopic,
-                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getFirstStream());
+                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties))
+                .map(new IngestTimeMapper());
         DataStream<SPTuple> ppData1 = firstStream.
                 flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
 
@@ -107,7 +109,11 @@ public class onlinePartitioningForSsj {
 
         KeyedStream<SPTuple, Integer> keyedData = ppData1.keyBy(t -> t.f0);
         if (options.hasSecondStream()) {
-            DataStream<InputTuple> secondStream = env.addSource(new FlinkKafkaConsumer<>(rightInputTopic, new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getSecondStream());
+            DataStream<InputTuple> secondStream = env
+                    .addSource(new FlinkKafkaConsumer<>(rightInputTopic,
+                            new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()),
+                            properties))
+                    .map(new IngestTimeMapper());
 
             DataStream<SPTuple> ppData2 = secondStream.
                     flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("secondSpacePartitioner");
