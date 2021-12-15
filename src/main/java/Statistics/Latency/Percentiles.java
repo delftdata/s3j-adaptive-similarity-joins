@@ -41,7 +41,7 @@ public class Percentiles extends ProcessWindowFunction<
     }
 
     public static long percentile(Long[] latencies, double percentile) {
-        int index = (int) Math.ceil(percentile / 100.0 * latencies.length);
+        int index = (int) Math.ceil(percentile * latencies.length);
         return latencies[index];
     }
 
