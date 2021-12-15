@@ -68,7 +68,7 @@ public class onlinePartitioningForSsj {
         String rightInputTopic = "pipeline-in-right";
         env.setMaxParallelism(128);
         env.setParallelism(10);
-        double dist_threshold = 0.1;
+        double dist_threshold = 1.0 - options.getThreshold();
 
         LOG.info("Enter main.");
         // ========================================================================================================== //
