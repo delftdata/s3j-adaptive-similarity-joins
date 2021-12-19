@@ -153,7 +153,7 @@ public class onlinePartitioningForSsj {
 
         String outputStatsTopic = "pipeline-out-stats";
         String allLatenciesTopic = "all-latencies";
-        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic, allLatenciesTopic,20);
+        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic, allLatenciesTopic,options.getWindowLentgh());
         stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
         stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
         stats.prepareSizePerGroup(lpData);

@@ -20,6 +20,10 @@ public class Options {
     @Option(name="-threshold", usage="Similarity threshold to use.")
     private double threshold = 0.9;
 
+    @Option(name="-monitoringWindow", usage="The length of the time window used for monitoring the pipeline.(In seconds)",
+            required = true)
+    private int windowLentgh;
+
 
     // Getters, setters, etc
     public boolean hasSecondStream() { return twoStreams; }
@@ -28,11 +32,11 @@ public class Options {
         return centroidsDim;
     }
 
-    public int getCentroidsNum() {
-        return centroidsNum;
-    }
+    public int getCentroidsNum() { return centroidsNum; }
 
-    public double getThreshold() { return threshold;}
+    public double getThreshold() { return threshold; }
 
     public String getKafkaURL() { return kafkaURL; }
+
+    public int getWindowLentgh() { return windowLentgh; }
 }
