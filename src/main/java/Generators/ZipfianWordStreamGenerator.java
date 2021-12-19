@@ -12,6 +12,8 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
+import java.util.concurrent.TimeUnit;
+
 public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, Integer, String>>, CheckpointedFunction {
 
     private Integer id = 0;
@@ -67,6 +69,9 @@ public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, I
                     timestamp++;
                     tRate = rate;
                 }
+            }
+            if(tRate == rate) {
+                TimeUnit.SECONDS.sleep(this.delay);
             }
         }
     }

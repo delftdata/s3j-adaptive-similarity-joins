@@ -13,6 +13,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import static Utils.SimilarityJoinsUtil.nextSkewedBoundedDouble;
 
@@ -71,6 +72,9 @@ public class SkewedGaussian2DStreamGenerator implements SourceFunction<Tuple3<Lo
                     timestamp++;
                     tRate = rate;
                 }
+            }
+            if(tRate == rate) {
+                TimeUnit.SECONDS.sleep(this.delay);
             }
         }
     }

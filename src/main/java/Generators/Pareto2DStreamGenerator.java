@@ -13,6 +13,8 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
+import java.util.concurrent.TimeUnit;
+
 public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Integer, Double[]>>, CheckpointedFunction {
 
     private int id = 0;
@@ -67,6 +69,9 @@ public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Inte
                     timestamp++;
                     tRate = rate;
                 }
+            }
+            if(tRate == rate) {
+                TimeUnit.SECONDS.sleep(this.delay);
             }
         }
     }
