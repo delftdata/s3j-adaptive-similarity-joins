@@ -22,15 +22,17 @@ public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, I
     private final int rate;
     private final Long tmsp;
     private int tRate;
+    private int delay;
     private volatile boolean isRunning = true;
     private transient ListState<Tuple3<Long, Integer, String>> checkpointedTuples;
 
-    public ZipfianWordStreamGenerator(String[] words, Double zipfExp, int rate, Long tmsp){
+    public ZipfianWordStreamGenerator(String[] words, Double zipfExp, int rate, Long tmsp, int delay){
         this.wordArray = words;
         this.zipf =new ZipfDistribution(new Well19937c(42), wordArray.length, zipfExp);
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
+        this.delay = delay;
     }
 
 

@@ -35,7 +35,7 @@ public class StreamGenerator {
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         StreamFactory streamFactory = new StreamFactory(env);
         Properties properties = new Properties();
-        properties.setProperty("bootstrap.servers", "localhost:9092");
+        properties.setProperty("bootstrap.servers", options.getKafkaURL());
 
         String leftOutputTopic = "pipeline-in-left";
         String rightOutputTopic = "pipeline-in-right";
@@ -44,14 +44,16 @@ public class StreamGenerator {
 
         LOG.info("Enter main.");
 
-        DataStream<InputTuple> firstStream = streamFactory.createDataStream(options.getFirstStream());
+        DataStream<InputTuple> firstStream = streamFactory
+                .createDataStream(options.getFirstStream(), options.getDelay(), options.getDuration(), options.getRate());
         FlinkKafkaProducer<InputTuple> leftProducer = new FlinkKafkaProducer<>(
                 leftOutputTopic,
                 new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() {}), env.getConfig()),
                 properties);
         firstStream.addSink(leftProducer);
         if (options.hasSecondStream()) {
-            DataStream<InputTuple> secondStream = streamFactory.createDataStream(options.getSecondStream());
+            DataStream<InputTuple> secondStream = streamFactory
+                    .createDataStream(options.getSecondStream(), options.getDelay(), options.getDuration(), options.getRate());
             FlinkKafkaProducer<InputTuple> rightProducer = new FlinkKafkaProducer<>(
                     rightOutputTopic,
                     new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() {}), env.getConfig()),

@@ -24,15 +24,16 @@ public class Uniform2DStreamGenerator implements SourceFunction<Tuple3<Long, Int
     private int rate;
     private Long tmsp;
     private int tRate;
+    private int delay;
     private volatile boolean isRunning = true;
     private transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
 
-    public Uniform2DStreamGenerator(int seed, int rate, Long tmsp){
+    public Uniform2DStreamGenerator(int seed, int rate, Long tmsp, int delay){
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
         this.rng = new Random(seed);
-
+        this.delay = delay;
     }
 
 
@@ -70,7 +71,7 @@ public class Uniform2DStreamGenerator implements SourceFunction<Tuple3<Long, Int
                 }
             }
             if(tRate == rate) {
-                TimeUnit.SECONDS.sleep(20);
+                TimeUnit.SECONDS.sleep(this.delay);
             }
         }
     }
