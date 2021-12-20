@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: coordinator
-        image: archer6621/ssj-coordinator
+        image: gsiachamis/ssj-coordinator
         ports:
         - containerPort: 5000
         envFrom:

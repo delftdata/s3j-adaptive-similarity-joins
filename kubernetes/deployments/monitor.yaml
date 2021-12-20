@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: monitor
-        image: archer6621/ssj-monitor
+        image: gsiachamis/ssj-monitoring
         envFrom:
         - configMapRef:
             name: env-config
