@@ -153,7 +153,7 @@ public class onlinePartitioningForSsj {
 
         String outputStatsTopic = "pipeline-out-stats";
         String allLatenciesTopic = "all-latencies";
-        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic, allLatenciesTopic,options.getWindowLentgh());
+        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
         stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
         stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
         stats.prepareSizePerGroup(lpData);
@@ -175,7 +175,10 @@ public class onlinePartitioningForSsj {
 
         // Execute
         JobExecutionResult result = env.execute("ssj");
-        System.out.println("The job took " + result.getNetRuntime(TimeUnit.SECONDS) + " seconds to execute");
+//        System.out.println("The job took " + result.getNetRuntime(TimeUnit.SECONDS) + " seconds to execute");
 
     }
 }
+
+
+// TODO: Add a choice of distance functions.

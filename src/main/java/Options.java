@@ -22,7 +22,7 @@ public class Options {
 
     @Option(name="-monitoringWindow", usage="The length of the time window used for monitoring the pipeline.(In seconds)",
             required = true)
-    private int windowLentgh;
+    private int windowLength;
 
 
     // Getters, setters, etc
@@ -38,5 +38,5 @@ public class Options {
 
     public String getKafkaURL() { return kafkaURL; }
 
-    public int getWindowLentgh() { return windowLentgh; }
+    public int getWindowLength() { return windowLength; }
 }

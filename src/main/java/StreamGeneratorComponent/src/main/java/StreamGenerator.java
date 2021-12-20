@@ -64,6 +64,6 @@ public class StreamGenerator {
 
         // Execute
         JobExecutionResult result = env.execute("generator");
-        System.out.println("The job took " + result.getNetRuntime(TimeUnit.SECONDS) + " seconds to execute");
+//        System.out.println("The job took " + result.getNetRuntime(TimeUnit.SECONDS) + " seconds to execute");
     }
 }
