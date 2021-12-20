@@ -4,6 +4,7 @@ source ./environment/dependencies.env
 set +o allexport
 
 
+kubectl delete configmap env-config
 $KUBECTL create configmap env-config --from-env-file=./environment/.env
 
 ./redeploy-minio.sh
