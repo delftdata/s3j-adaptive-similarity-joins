@@ -141,7 +141,7 @@
             <version>${flink.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>log4j</groupId>
+                    <groupId>org.apache.logging.log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
@@ -157,7 +157,7 @@
             <version>${flink.version}</version>
             <exclusions>
                 <exclusion>
-                    <groupId>log4j</groupId>
+                    <groupId>org.apache.logging.log4j</groupId>
                     <artifactId>*</artifactId>
                 </exclusion>
                 <exclusion>
@@ -178,15 +178,21 @@
         <!-- Add logging framework, to produce console output when running in the IDE. -->
         <!-- These dependencies are excluded from the application JAR by default. -->
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-log4j12</artifactId>
-            <version>1.7.7</version>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <version>2.17.1</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
-            <groupId>log4j</groupId>
-            <artifactId>log4j</artifactId>
-            <version>1.2.17</version>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>2.17.1</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>2.17.1</version>
             <scope>runtime</scope>
         </dependency>
         <!-- https://mvnrepository.com/artifact/args4j/args4j -->
