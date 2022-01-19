@@ -137,7 +137,6 @@ public class onlinePartitioningForSsj {
 
         similarityOperator.setSideJoins(sideJoins);
         final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats = new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
-        firstStream.writeAsText(pwd+"/src/main/resources/streamed_dataset.txt", FileSystem.WriteMode.OVERWRITE);
         SingleOutputStreamOperator<FinalOutput>
                 unfilteredSelfJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
