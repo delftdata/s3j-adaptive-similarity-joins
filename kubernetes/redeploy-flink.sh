@@ -8,11 +8,13 @@ $KUBECTL create clusterrolebinding flink-role-binding-default --clusterrole=edit
 $FLINK_HOME/bin/kubernetes-session.sh \
     -Dkubernetes.cluster-id=my-first-flink-cluster \
     -Dkubernetes.container.image=gsiachamis/flink:1.12.1-delta \
+    -Dstate.backend=rocksdb \
+    -Dstate.checkpoints.dir=http://$($KUBECTL get svc | grep 'minio ' | awk '{print $3}'):9000/flink/savepoints \
     -Ds3.endpoint=http://$($KUBECTL get svc | grep 'minio ' | awk '{print $3}'):9000 \
-	-Ds3.path-style=true \
-	-Ds3.access-key=minio \
-	-Ds3.secret-key=minio123 \
-	-Dtaskmanager.numberOfTaskSlots=1 \
-	-Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.12.1-DELTA.jar \
+    -Ds3.path-style=true \
+    -Ds3.access-key=minio \
+    -Ds3.secret-key=minio123 \
+    -Dtaskmanager.numberOfTaskSlots=1 \
+    -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.12.1-DELTA.jar \
     -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.12.1-DELTA.jar
 $KUBECTL patch deployment my-first-flink-cluster --type json -p '[{"op": "add", "path": "/spec/template/spec/containers/0/envFrom", "value": [{"configMapRef": {"name": "env-config"}}] }]'
