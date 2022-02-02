@@ -9,7 +9,7 @@ $FLINK_HOME/bin/kubernetes-session.sh \
     -Dkubernetes.cluster-id=my-first-flink-cluster \
     -Dkubernetes.container.image=gsiachamis/flink:1.12.1-delta \
     -Dstate.backend=rocksdb \
-    -Dstate.checkpoints.dir=http://$($KUBECTL get svc | grep 'minio ' | awk '{print $3}'):9000/flink/savepoints \
+    -Dstate.checkpoints.dir=s3://flink/checkpoints \
     -Ds3.endpoint=http://$($KUBECTL get svc | grep 'minio ' | awk '{print $3}'):9000 \
     -Ds3.path-style=true \
     -Ds3.access-key=minio \
