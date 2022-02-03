@@ -17,6 +17,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -59,7 +60,7 @@ public class onlinePartitioningForSsj {
 
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(new FsStateBackend("s3://flink/savepoints/"));
+        env.setStateBackend(new RocksDBStateBackend("s3://flink/checkpoints/"));
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", options.getKafkaURL());
