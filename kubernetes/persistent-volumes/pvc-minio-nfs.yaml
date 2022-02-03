@@ -1,0 +1,12 @@
+# ONLY FOR STANDALONE DEPLOYMENT OF MINIO.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-minio-nfs
+spec:
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
