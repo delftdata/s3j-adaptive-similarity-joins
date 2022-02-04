@@ -14,7 +14,7 @@ spec:
     - hard
     - nfsvers=3
   nfs:
-    path: /ewi_delta_data/ssj-george/minio-pv
+    path: /ewi_delta_data/ssj-george/minio-pv/
     server: svm107.storage.tudelft.net
 ---
 apiVersion: v1
@@ -33,7 +33,7 @@ spec:
     - hard
     - nfsvers=3
   nfs:
-    path: /ewi_delta_data/ssj-george/minio-pv
+    path: /ewi_delta_data/ssj-george/minio-pv/
     server: svm107.storage.tudelft.net
 ---
 apiVersion: v1
@@ -52,7 +52,7 @@ spec:
     - hard
     - nfsvers=3
   nfs:
-    path: /ewi_delta_data/ssj-george/minio-pv
+    path: /ewi_delta_data/ssj-george/minio-pv/
     server: svm107.storage.tudelft.net
 ---
 apiVersion: v1
@@ -71,5 +71,5 @@ spec:
     - hard
     - nfsvers=3
   nfs:
-    path: /ewi_delta_data/ssj-george/minio-pv
+    path: /ewi_delta_data/ssj-george/minio-pv/
     server: svm107.storage.tudelft.net
