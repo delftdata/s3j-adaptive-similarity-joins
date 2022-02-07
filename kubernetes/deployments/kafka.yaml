@@ -1,3 +1,51 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kafka-pv
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-storage
+  local:
+    path: /data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+            - "delta03.ewi.tudelft.nl"
+            - "delta04.ewi.tudelft.nl"
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: zookeeper-pv
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Delete
+  storageClassName: local-storage
+  local:
+    path: /data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - "delta03.ewi.tudelft.nl"
+                - "delta04.ewi.tudelft.nl"
+---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
 metadata:
@@ -26,16 +74,15 @@ spec:
       log.message.format.version: "3.0"
       inter.broker.protocol.version: "3.0"
     storage:
-      type: jbod
-      volumes:
-      - id: 0
-        type: persistent-claim
-        size: 1Gi
-        deleteClaim: false
+      type: persistent-claim
+      class: local-storage
+      size: 5Gi
+      deleteClaim: false
   zookeeper:
     replicas: 1
     storage:
       type: persistent-claim
+      class: local-storage
       size: 1Gi
       deleteClaim: false
   entityOperator:
