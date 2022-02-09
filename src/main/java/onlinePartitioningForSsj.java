@@ -36,6 +36,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 
@@ -45,6 +46,7 @@ public class onlinePartitioningForSsj {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
+    static String jobUUID = UUID.randomUUID().toString();
 
     public static void main(String[] args) throws Exception{
         // Arg parsing
@@ -53,18 +55,12 @@ public class onlinePartitioningForSsj {
         parser.parseArgument(args);
 
         // Excecution environment details //
-//        Configuration config = new Configuration();
-//        config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
-//        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
-
-
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        String jobID = env.getStreamGraph().getJobGraph().getJobID().toString();
         env.setStateBackend(new RocksDBStateBackend("s3://flink/checkpoints/"));
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", options.getKafkaURL());
+
 
         String leftInputTopic = "pipeline-in-left";
         String rightInputTopic = "pipeline-in-right";
@@ -74,6 +70,7 @@ public class onlinePartitioningForSsj {
 
         LOG.info("Enter main.");
         // ========================================================================================================== //
+
 
         // OutputTags for sideOutputs. Used to extract information for statistics.
         final OutputTag<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
@@ -154,12 +151,12 @@ public class onlinePartitioningForSsj {
 
         String outputStatsTopic = "pipeline-out-stats";
         String allLatenciesTopic = "all-latencies";
-        LoadBalancingStats stats = new LoadBalancingStats(jobID, properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
+        LoadBalancingStats stats = new LoadBalancingStats(jobUUID, properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
         stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
         stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
         stats.prepareSizePerGroup(lpData);
 //        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
-        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream, 0.5);
+        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream, 0.2);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream

@@ -34,11 +34,11 @@ public class LoadBalancingStats {
     private final String statsKafkaTopic;
     private final int windowLength;
     private final String allLatenciesTopic;
-    private final String jobID;
+    private final String jobUUID;
 
-    public LoadBalancingStats(String jobID, Properties properties, String statsKafkaTopic, String allLatenciesTopic,
+    public LoadBalancingStats(String jobUUID, Properties properties, String statsKafkaTopic, String allLatenciesTopic,
                               int windowLength) {
-        this.jobID = jobID;
+        this.jobUUID = jobUUID;
         this.properties = properties;
         this.statsKafkaTopic = statsKafkaTopic;
         this.windowLength = windowLength;
@@ -57,7 +57,7 @@ public class LoadBalancingStats {
         FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>> myStatsProducer =
                 new FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, Long>>>>(
                         statsKafkaTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple2<Integer, Long>>>>(jobID+"_final-comps-per-machine", statsKafkaTopic),
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple2<Integer, Long>>>>(jobUUID+"_final-comps-per-machine", statsKafkaTopic),
                         properties,
                         FlinkKafkaProducer.Semantic.EXACTLY_ONCE
                 );
@@ -84,7 +84,7 @@ public class LoadBalancingStats {
         FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> groupLevelFinalComputationsProducer =
                 new FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(
                         statsKafkaTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(jobID+"_final-comps-per-group", statsKafkaTopic),
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(jobUUID+"_final-comps-per-group", statsKafkaTopic),
                         properties,
                         FlinkKafkaProducer.Semantic.EXACTLY_ONCE
                 );
@@ -107,7 +107,7 @@ public class LoadBalancingStats {
         FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> groupSizeProducer =
                 new FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(
                         statsKafkaTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(jobID+"_size-per-group", statsKafkaTopic),
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(jobUUID+"_size-per-group", statsKafkaTopic),
                         properties,
                         FlinkKafkaProducer.Semantic.EXACTLY_ONCE
                 );
@@ -130,7 +130,7 @@ public class LoadBalancingStats {
         FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Long, Long>>>> averageLatencyPerMachine =
                 new FlinkKafkaProducer<Tuple2<Long, List<Tuple3<Integer, Long, Long>>>>(
                         statsKafkaTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple3<Integer, Long, Long>>>>(jobID+"_av-latency-per-machine", statsKafkaTopic),
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple3<Integer, Long, Long>>>>(jobUUID+"_av-latency-per-machine", statsKafkaTopic),
                         properties,
                         FlinkKafkaProducer.Semantic.EXACTLY_ONCE
                 );
@@ -153,7 +153,7 @@ public class LoadBalancingStats {
         FlinkKafkaProducer<Tuple2<Long, Tuple2<Integer, Long>>> kafkaLatencies =
                 new FlinkKafkaProducer<Tuple2<Long, Tuple2<Integer, Long>>>(
                         statsKafkaTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, Tuple2<Integer, Long>>>(jobID+"_latencies-per-window", allLatenciesTopic),
+                        new ObjectSerializationSchema<Tuple2<Long, Tuple2<Integer, Long>>>(jobUUID+"_latencies-per-window", allLatenciesTopic),
                         properties,
                         FlinkKafkaProducer.Semantic.EXACTLY_ONCE
                 );
@@ -178,7 +178,7 @@ public class LoadBalancingStats {
         FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, List<Tuple2<String, Long>>>>>> averageLatencyPercentiles =
                 new FlinkKafkaProducer<Tuple2<Long, List<Tuple2<Integer, List<Tuple2<String, Long>>>>>>(
                         statsKafkaTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple2<Integer, List<Tuple2<String, Long>>>>>>(jobID+"_latency-percentiles-per-machine", statsKafkaTopic),
+                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple2<Integer, List<Tuple2<String, Long>>>>>>(jobUUID+"_latency-percentiles-per-machine", statsKafkaTopic),
                         properties,
                         FlinkKafkaProducer.Semantic.EXACTLY_ONCE
                 );
