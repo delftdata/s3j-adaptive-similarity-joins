@@ -60,6 +60,7 @@ public class onlinePartitioningForSsj {
 
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        String jobID = env.getStreamGraph().getJobGraph().getJobID().toString();
         env.setStateBackend(new RocksDBStateBackend("s3://flink/checkpoints/"));
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         Properties properties = new Properties();
@@ -153,12 +154,12 @@ public class onlinePartitioningForSsj {
 
         String outputStatsTopic = "pipeline-out-stats";
         String allLatenciesTopic = "all-latencies";
-        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
+        LoadBalancingStats stats = new LoadBalancingStats(jobID, properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
         stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
         stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
         stats.prepareSizePerGroup(lpData);
-        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
-        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream, 1.0);
+//        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
+        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream, 0.5);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
