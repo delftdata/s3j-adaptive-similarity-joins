@@ -16,6 +16,7 @@ $FLINK_HOME/bin/kubernetes-session.sh \
     -Ds3.secret-key=minio123 \
     -Dtaskmanager.numberOfTaskSlots=1 \
     -Dtaskmanager.memory.process.size=8000m \
+    -Djobmanager.memory.process.size=8000m \
     -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.12.1-DELTA.jar \
     -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.12.1-DELTA.jar
 $KUBECTL patch deployment my-first-flink-cluster --type json -p '[{"op": "add", "path": "/spec/template/spec/containers/0/envFrom", "value": [{"configMapRef": {"name": "env-config"}}] }]'
