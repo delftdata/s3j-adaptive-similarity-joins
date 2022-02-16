@@ -1,22 +1,19 @@
 #!/usr/bin/env bash
-set -o allexport
-source ./environment/dependencies.env
-set +o allexport
 
-$KUBECTL delete deploy monitor
-while [[ "$($KUBECTL get pods |(! grep "monitor"))" ]]; do
+kubectl delete deploy monitor
+while [[ "$(kubectl get pods |(! grep "monitor"))" ]]; do
         echo "Pod still terminating... Waiting..."
         sleep 10
 done
 
-$KUBECTL exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --delete --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092
-$KUBECTL exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --delete --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092
-$KUBECTL exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --delete --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092
-$KUBECTL exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --delete --topic pipeline-out-stats --bootstrap-server kafka-cluster-kafka-bootstrap:9092
+kubectl exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --delete --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092
+kubectl exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --delete --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092
+kubectl exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --delete --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092
+kubectl exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --delete --topic pipeline-out-stats --bootstrap-server kafka-cluster-kafka-bootstrap:9092
 
-$KUBECTL exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --create --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 1 --replication-factor 1
-$KUBECTL exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --create --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 1 --replication-factor 1
-$KUBECTL exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --create --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 1 --replication-factor 1
-$KUBECTL exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --create --topic pipeline-out-stats --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 1 --replication-factor 1
+kubectl exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --create --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 1 --replication-factor 1
+kubectl exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --create --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 1 --replication-factor 1
+kubectl exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --create --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 1 --replication-factor 1
+kubectl exec -n kafka -ti kafka-cluster-zookeeper-0 -- bin/kafka-topics.sh --create --topic pipeline-out-stats --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 1 --replication-factor 1
 
-$KUBECTL apply -f deployments/monitor.yaml
+kubectl apply -f deployments/monitor.yaml
