@@ -1,0 +1,15 @@
+accessKey:
+  password: minio
+secretKey:
+  password: minio123
+mode: standalone
+persistence:
+  mountPath: svm107.storage.tudelft.net:/ewi_delta_data/ssj-george/minio-pv
+  size: 100Gi
+  storageClass: nfs
+  accessModes:
+    - ReadWriteMany
+resources:
+  requests:
+    memory: 1Gi
+    cpu: 1

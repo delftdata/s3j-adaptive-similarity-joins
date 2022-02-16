@@ -1,0 +1,6 @@
+[submodule "monitor"]
+	path = monitor
+	url = https://github.com/jorgeSia/ssj-monitoring-load-balancing
+[submodule "coordinator"]
+	path = coordinator
+	url = https://github.com/delftdata/SSJ-Coordinator
