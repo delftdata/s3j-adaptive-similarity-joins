@@ -11,3 +11,4 @@ libs/*
 log.out
 *.iml
 /kubernetes/environment/dependencies.env
+/kubernetes/coordinator-api-calls.sh
