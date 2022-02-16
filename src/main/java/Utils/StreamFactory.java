@@ -50,8 +50,8 @@ public class StreamFactory {
         return arrays2D;
     }
 
-    public DataStream<InputTuple> createGaussian2DStream(int seed, int rate, Long tmsp){
-        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new Gaussian2DStreamGenerator(seed, rate, tmsp));
+    public DataStream<InputTuple> createGaussian2DStream(int seed, int rate, Long tmsp, int delay){
+        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new Gaussian2DStreamGenerator(seed, rate, tmsp, delay));
         DataStream<InputTuple> gaussian2D = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
                 .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
         gaussian2D = gaussian2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
@@ -63,8 +63,8 @@ public class StreamFactory {
         return gaussian2D;
     }
 
-    public DataStream<InputTuple> createSkewedGaussian2DStream(int seed, int rate, Long tmsp){
-        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new SkewedGaussian2DStreamGenerator(seed, rate, tmsp));
+    public DataStream<InputTuple> createSkewedGaussian2DStream(int seed, int rate, Long tmsp, int delay){
+        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new SkewedGaussian2DStreamGenerator(seed, rate, tmsp, delay));
         DataStream<InputTuple> skewed_gaussian2D = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
                 .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
         skewed_gaussian2D = skewed_gaussian2D.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
@@ -76,8 +76,8 @@ public class StreamFactory {
         return skewed_gaussian2D;
     }
 
-    public DataStream<InputTuple> createUniform2DStream(int seed, int rate, Long tmsp){
-        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new Uniform2DStreamGenerator(seed, rate, tmsp));
+    public DataStream<InputTuple> createUniform2DStream(int seed, int rate, Long tmsp, int delay){
+        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new Uniform2DStreamGenerator(seed, rate, tmsp, delay));
         DataStream<InputTuple> uniform = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
                 .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
         uniform = uniform.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
@@ -89,8 +89,8 @@ public class StreamFactory {
         return uniform;
     }
 
-    public DataStream<InputTuple> createPareto2DStream(double scale, double shape, int rate, Long tmsp){
-        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new Pareto2DStreamGenerator(scale, shape, rate, tmsp));
+    public DataStream<InputTuple> createPareto2DStream(double scale, double shape, int rate, Long tmsp, int delay){
+        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new Pareto2DStreamGenerator(scale, shape, rate, tmsp, delay));
         DataStream<InputTuple> pareto = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
                 .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
         pareto = pareto.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
@@ -102,11 +102,11 @@ public class StreamFactory {
         return pareto;
     }
 
-    public DataStream<Tuple4<Long, Long, Integer, String>> createZipfianWordStream(String embeddingsFile, double zipfExp, int rate, Long tmsp){
+    public DataStream<Tuple4<Long, Long, Integer, String>> createZipfianWordStream(String embeddingsFile, double zipfExp, int rate, Long tmsp, int delay){
         try {
             Set<String> wordSet = SimilarityJoinsUtil.readEmbeddings(embeddingsFile).keySet();
             String[] words = wordSet.toArray(new String[0]);
-            DataStream<Tuple3<Long, Integer, String>> initial = env.addSource(new ZipfianWordStreamGenerator(words, zipfExp, rate, tmsp));
+            DataStream<Tuple3<Long, Integer, String>> initial = env.addSource(new ZipfianWordStreamGenerator(words, zipfExp, rate, tmsp, delay));
             DataStream<Tuple4<Long, Long, Integer,String>> zipfian = initial.map(x -> new Tuple4<>(x.f0, System.currentTimeMillis(), x.f1, x.f2))
                     .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Long, Integer, String>>() {}));
             zipfian = zipfian.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple4<Long, Long, Integer, String>>() {
@@ -125,21 +125,21 @@ public class StreamFactory {
     }
 
 
-    public DataStream<InputTuple> createDataStream(String source) throws Exception {
+    public DataStream<InputTuple> createDataStream(String source, int delay, int duration, int rate) throws Exception {
         DataStream<InputTuple> dataStream;
         int parallelismBefore = env.getParallelism();
         env.setParallelism(1);
 
         switch(source) {
-            case "gaussian_2D_generator":           dataStream = createGaussian2DStream(42, 1000, 10L);
+            case "gaussian_2D_generator":           dataStream = createGaussian2DStream(42, rate, (long) duration, delay);
                 break;
-            case "skewed_gaussian_2D_generator":    dataStream = createSkewedGaussian2DStream(42, 1000, 10L);
+            case "skewed_gaussian_2D_generator":    dataStream = createSkewedGaussian2DStream(42, rate, (long) duration, delay);
                 break;
-            case "uniform_2D_generator":            dataStream = createUniform2DStream(42, 1000, 10L);
+            case "uniform_2D_generator":            dataStream = createUniform2DStream(42, rate, (long) duration, delay);
                 break;
-            case "pareto_2D_generator":             dataStream = createPareto2DStream(1.0, 10.0 , 1000, 10L);
+            case "pareto_2D_generator":             dataStream = createPareto2DStream(1.0, 10.0 , rate, (long) duration, delay);
                 break;
-            case "zipfian_word_generator":          dataStream = createZipfianWordStream("wiki-news-300d-1K.vec", 2.0, 1000, 10L)
+            case "zipfian_word_generator":          dataStream = createZipfianWordStream("wiki-news-300d-1K.vec", 2.0, rate, (long) duration, delay)
                     .map(new WordsToEmbeddingMapper("wiki-news-300d-1K.vec"));
                 break;
             default:                                dataStream = create2DArrayStream(source);

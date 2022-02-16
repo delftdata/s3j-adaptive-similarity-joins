@@ -13,6 +13,7 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 import static Utils.SimilarityJoinsUtil.nextSkewedBoundedDouble;
 
@@ -26,15 +27,16 @@ public class SkewedGaussian2DStreamGenerator implements SourceFunction<Tuple3<Lo
     private int rate;
     private Long tmsp;
     private int tRate;
+    private int delay;
     private volatile boolean isRunning = true;
     private transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
 
-    public SkewedGaussian2DStreamGenerator(int seed, int rate, Long tmsp){
+    public SkewedGaussian2DStreamGenerator(int seed, int rate, Long tmsp, int delay){
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
         this.rng = new Random(seed);
-
+        this.delay = delay;
     }
 
 
@@ -70,6 +72,9 @@ public class SkewedGaussian2DStreamGenerator implements SourceFunction<Tuple3<Lo
                     timestamp++;
                     tRate = rate;
                 }
+            }
+            if(tRate == rate) {
+                TimeUnit.SECONDS.sleep(this.delay);
             }
         }
     }

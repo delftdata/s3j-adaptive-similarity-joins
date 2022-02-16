@@ -13,6 +13,8 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
+import java.util.concurrent.TimeUnit;
+
 public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Integer, Double[]>>, CheckpointedFunction {
 
     private int id = 0;
@@ -22,14 +24,16 @@ public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Inte
     private int rate;
     private Long tmsp;
     private int tRate;
+    private int delay;
     private volatile boolean isRunning = true;
     private transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
 
-    public Pareto2DStreamGenerator(Double scale, Double shape, int rate, Long tmsp){
+    public Pareto2DStreamGenerator(Double scale, Double shape, int rate, Long tmsp, int delay){
         this.pareto =new ParetoDistribution(new Well19937c(42), scale, shape);
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
+        this.delay = delay;
     }
 
 
@@ -65,6 +69,9 @@ public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Inte
                     timestamp++;
                     tRate = rate;
                 }
+            }
+            if(tRate == rate) {
+                TimeUnit.SECONDS.sleep(this.delay);
             }
         }
     }

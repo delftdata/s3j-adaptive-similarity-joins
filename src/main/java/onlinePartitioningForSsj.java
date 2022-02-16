@@ -8,6 +8,7 @@ import Operators.SimilarityJoinSelf;
 import Statistics.LoadBalancingStats;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -16,6 +17,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -34,6 +36,7 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 
@@ -43,6 +46,7 @@ public class onlinePartitioningForSsj {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
+    static String jobUUID = UUID.randomUUID().toString();
 
     public static void main(String[] args) throws Exception{
         // Arg parsing
@@ -51,26 +55,22 @@ public class onlinePartitioningForSsj {
         parser.parseArgument(args);
 
         // Excecution environment details //
-//        Configuration config = new Configuration();
-//        config.setBoolean(ConfigConstants.LOCAL_START_WEBSERVER, true);
-//        StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(config);
-
-
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(new FsStateBackend("s3://flink/savepoints/"));
+        env.setStateBackend(new RocksDBStateBackend("s3://flink/checkpoints/"));
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", options.getKafkaURL());
+
 
         String leftInputTopic = "pipeline-in-left";
         String rightInputTopic = "pipeline-in-right";
         env.setMaxParallelism(128);
         env.setParallelism(10);
-        double dist_threshold = 0.1;
+        double dist_threshold = 1.0 - options.getThreshold();
 
         LOG.info("Enter main.");
         // ========================================================================================================== //
+
 
         // OutputTags for sideOutputs. Used to extract information for statistics.
         final OutputTag<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids =
@@ -97,7 +97,8 @@ public class onlinePartitioningForSsj {
         // Basically the partitioning is happening by augmenting tuples with key attributes.
         DataStream<InputTuple> firstStream = env.addSource(new FlinkKafkaConsumer<>(
                 leftInputTopic,
-                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getFirstStream());
+                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties))
+                .map(new IngestTimeMapper());
         DataStream<SPTuple> ppData1 = firstStream.
                 flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
 
@@ -107,7 +108,11 @@ public class onlinePartitioningForSsj {
 
         KeyedStream<SPTuple, Integer> keyedData = ppData1.keyBy(t -> t.f0);
         if (options.hasSecondStream()) {
-            DataStream<InputTuple> secondStream = env.addSource(new FlinkKafkaConsumer<>(rightInputTopic, new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties));//streamFactory.createDataStream(options.getSecondStream());
+            DataStream<InputTuple> secondStream = env
+                    .addSource(new FlinkKafkaConsumer<>(rightInputTopic,
+                            new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()),
+                            properties))
+                    .map(new IngestTimeMapper());
 
             DataStream<SPTuple> ppData2 = secondStream.
                     flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("secondSpacePartitioner");
@@ -131,7 +136,6 @@ public class onlinePartitioningForSsj {
 
         similarityOperator.setSideJoins(sideJoins);
         final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats = new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
-        firstStream.writeAsText(pwd+"/src/main/resources/streamed_dataset.txt", FileSystem.WriteMode.OVERWRITE);
         SingleOutputStreamOperator<FinalOutput>
                 unfilteredSelfJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
@@ -146,11 +150,13 @@ public class onlinePartitioningForSsj {
                 FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
 
         String outputStatsTopic = "pipeline-out-stats";
-        LoadBalancingStats stats = new LoadBalancingStats(properties, outputStatsTopic, 20);
+        String allLatenciesTopic = "all-latencies";
+        LoadBalancingStats stats = new LoadBalancingStats(jobUUID, properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
         stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
         stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
         stats.prepareSizePerGroup(lpData);
-        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
+//        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
+        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream, 0.2);
 
         SingleOutputStreamOperator<FinalOutput>
                 selfJoinedStream = unfilteredSelfJoinedStream
@@ -167,7 +173,10 @@ public class onlinePartitioningForSsj {
 
         // Execute
         JobExecutionResult result = env.execute("ssj");
-        System.out.println("The job took " + result.getNetRuntime(TimeUnit.SECONDS) + " seconds to execute");
+//        System.out.println("The job took " + result.getNetRuntime(TimeUnit.SECONDS) + " seconds to execute");
 
     }
 }
+
+
+// TODO: Add a choice of distance functions.
