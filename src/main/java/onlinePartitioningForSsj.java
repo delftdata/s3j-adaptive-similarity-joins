@@ -65,7 +65,7 @@ public class onlinePartitioningForSsj {
         String leftInputTopic = "pipeline-in-left";
         String rightInputTopic = "pipeline-in-right";
         env.setMaxParallelism(128);
-        env.setParallelism(10);
+        env.setParallelism(options.getParallelism());
         double dist_threshold = 1.0 - options.getThreshold();
 
         LOG.info("Enter main.");
@@ -86,7 +86,7 @@ public class onlinePartitioningForSsj {
 
         // Create the input stream from the source. Set the properties for the centroids.
         int centroidsDim = options.getCentroidsDim();
-        int centroidsNum = options.getCentroidsNum();
+        int centroidsNum = options.getParallelism();
         HashMap<Integer, Double[]> centroids = SimilarityJoinsUtil.RandomCentroids(centroidsNum, centroidsDim);
 
         SimilarityJoin similarityOperator;

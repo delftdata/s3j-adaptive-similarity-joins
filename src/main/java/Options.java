@@ -24,6 +24,9 @@ public class Options {
             required = true)
     private int windowLength;
 
+    @Option(name="-parallelism", usage="Define the desired level of parallelism. DEFAULT: 10")
+    private int parallelism = 10;
+
 
     // Getters, setters, etc
     public boolean hasSecondStream() { return twoStreams; }
@@ -39,4 +42,8 @@ public class Options {
     public String getKafkaURL() { return kafkaURL; }
 
     public int getWindowLength() { return windowLength; }
+
+    public int getParallelism() {
+        return parallelism;
+    }
 }
