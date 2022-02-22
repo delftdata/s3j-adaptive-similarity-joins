@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
 kubectl delete deploy my-first-flink-cluster
+while [[ "$(kubectl get svc |(! grep "my-first-flink-cluster"))" ]]; do
+        echo "Service still terminating... Waiting..."
+        sleep 10
+done
+
 kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edit --serviceaccount=default:default
 $FLINK_HOME/bin/kubernetes-session.sh \
     -Dkubernetes.cluster-id=my-first-flink-cluster \
@@ -11,6 +16,8 @@ $FLINK_HOME/bin/kubernetes-session.sh \
     -Ds3.path-style=true \
     -Ds3.access-key=minio \
     -Ds3.secret-key=minio123 \
+    -Dblob.server.port=6124 \
+    -Dtaskmanager.rpc.port=6122 \
     -Dtaskmanager.numberOfTaskSlots=1 \
     -Dtaskmanager.memory.process.size=8000m \
     -Djobmanager.memory.process.size=8000m \
