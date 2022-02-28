@@ -58,8 +58,15 @@ public class onlinePartitioningForSsj {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(new RocksDBStateBackend("s3://flink/checkpoints/"));
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", options.getKafkaURL());
+        Properties leftInputProperties = new Properties();
+        leftInputProperties.setProperty("bootstrap.servers", options.getKafkaURL());
+        leftInputProperties.setProperty("group.id", "LeftStream");
+        Properties rightInputProperties = new Properties();
+        rightInputProperties.setProperty("bootstrap.servers", options.getKafkaURL());
+        rightInputProperties.setProperty("group.id", "RightStream");
 
 
         String leftInputTopic = "pipeline-in-left";
@@ -95,9 +102,11 @@ public class onlinePartitioningForSsj {
         // The space partitioning operator.
         // Here we partition the incoming data based on proximity of the given centroids and the given threshold.
         // Basically the partitioning is happening by augmenting tuples with key attributes.
-        DataStream<InputTuple> firstStream = env.addSource(new FlinkKafkaConsumer<>(
-                leftInputTopic,
-                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()), properties))
+        DataStream<InputTuple> firstStream = env
+                .addSource(new FlinkKafkaConsumer<>(
+                        leftInputTopic,
+                        new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()),
+                        leftInputProperties))
                 .map(new IngestTimeMapper());
         DataStream<SPTuple> ppData1 = firstStream.
                 flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
@@ -109,9 +118,10 @@ public class onlinePartitioningForSsj {
         KeyedStream<SPTuple, Integer> keyedData = ppData1.keyBy(t -> t.f0);
         if (options.hasSecondStream()) {
             DataStream<InputTuple> secondStream = env
-                    .addSource(new FlinkKafkaConsumer<>(rightInputTopic,
+                    .addSource(new FlinkKafkaConsumer<>(
+                            rightInputTopic,
                             new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()),
-                            properties))
+                            rightInputProperties))
                     .map(new IngestTimeMapper());
 
             DataStream<SPTuple> ppData2 = secondStream.
