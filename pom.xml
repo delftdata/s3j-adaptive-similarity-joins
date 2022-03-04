@@ -173,6 +173,11 @@
             <version>1.12.1-DELTA</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-state-processor-api_2.11</artifactId>
+            <version>1.12.1-DELTA</version>
+        </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind -->
         <dependency>
