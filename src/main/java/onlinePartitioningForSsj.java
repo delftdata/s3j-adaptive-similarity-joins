@@ -56,7 +56,7 @@ public class onlinePartitioningForSsj {
 
         // Excecution environment details //
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setStateBackend(new RocksDBStateBackend("s3://flink/checkpoints/"));
+        env.setStateBackend(new RocksDBStateBackend("s3://flink/checkpoints/", true));
         env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
 
         Properties properties = new Properties();
