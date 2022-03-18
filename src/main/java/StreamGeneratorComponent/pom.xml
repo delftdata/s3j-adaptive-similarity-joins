@@ -251,7 +251,6 @@
             <groupId>org.example</groupId>
             <artifactId>online_partitioning_for_ssj</artifactId>
             <version>1.0</version>
-            <scope>compile</scope>
         </dependency>
 
     </dependencies>

@@ -1,5 +1,11 @@
 package Utils;
 
+import CustomDataTypes.MinioConfiguration;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import io.minio.GetObjectArgs;
+import io.minio.MinioClient;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.math3.distribution.ParetoDistribution;
 import org.apache.commons.math3.distribution.ZipfDistribution;
@@ -8,13 +14,16 @@ import org.apache.commons.math3.random.Well19937c;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.slf4j.Logger;
 import scala.Int;
 import scala.concurrent.java8.FuturesConvertersImpl;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -406,12 +415,40 @@ public class SimilarityJoinsUtil {
 
     }
 
-    public static HashMap<String, Double[]> readEmbeddings(String file4WE) throws Exception{
+    public static HashMap<String, Double[]> readEmbeddings(String minioObject, MinioConfiguration minio, Logger LOG)
+            throws Exception{
+
         HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
-        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+file4WE),Charset.defaultCharset()).skip(1)) {
+
+        LOG.info("readEmbeddings function");
+        LOG.info("minio endpoint " + minio.getEndpoint());
+
+        MinioClient minioClient =
+                MinioClient.builder()
+                        .endpoint(minio.getEndpoint())
+                        .credentials(minio.getAccessKey(), minio.getSecretKey())
+                        .build();
+
+        LOG.info("Client created");
+
+        // Read input file from Minio
+        InputStream embeddingsFile = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket("embeddings")
+                        .object(minioObject)
+                        .build());
+        String data = IOUtils.toString(embeddingsFile, StandardCharsets.UTF_8);
+
+        LOG.info("Embeddings file read.");
+
+        try (Stream<String> lines = data.lines()) {
             lines.map(l -> l.split(" ",2))
                     .forEach(l -> wordEmbeddings.put(l[0], arrayStringToDouble(l[1].split(" "), 300)));
         }
+
+        LOG.info("Embeddings array created.");
+
+        embeddingsFile.close();
         return wordEmbeddings;
     }
 

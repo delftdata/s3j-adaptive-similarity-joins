@@ -1,9 +1,11 @@
 package Utils;
 
 import CustomDataTypes.InputTuple;
+import CustomDataTypes.MinioConfiguration;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.slf4j.Logger;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -13,8 +15,8 @@ public class WordsToEmbeddingMapper implements MapFunction<Tuple4<Long, Long, In
 
     HashMap<String, Double[]> wordEmbeddings;
 
-    public WordsToEmbeddingMapper(String filename) throws Exception{
-        this.wordEmbeddings = SimilarityJoinsUtil.readEmbeddings(filename);
+    public WordsToEmbeddingMapper(String filename, MinioConfiguration minio, Logger LOG) throws Exception{
+        this.wordEmbeddings = SimilarityJoinsUtil.readEmbeddings(filename, minio, LOG);
     }
 
 

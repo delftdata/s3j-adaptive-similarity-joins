@@ -1,6 +1,7 @@
 package Utils;
 
 import CustomDataTypes.InputTuple;
+import CustomDataTypes.MinioConfiguration;
 import Generators.*;
 import Parsers.ArrayStreamParser;
 import Parsers.Parser;
@@ -11,6 +12,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor;
+import org.slf4j.Logger;
 
 import java.util.Set;
 
@@ -102,9 +104,9 @@ public class StreamFactory {
         return pareto;
     }
 
-    public DataStream<Tuple4<Long, Long, Integer, String>> createZipfianWordStream(String embeddingsFile, double zipfExp, int rate, Long tmsp, int delay){
+    public DataStream<Tuple4<Long, Long, Integer, String>> createZipfianWordStream(String embeddingsFile, double zipfExp, int rate, Long tmsp, int delay, MinioConfiguration minio, Logger LOG){
         try {
-            Set<String> wordSet = SimilarityJoinsUtil.readEmbeddings(embeddingsFile).keySet();
+            Set<String> wordSet = SimilarityJoinsUtil.readEmbeddings(embeddingsFile, minio, LOG).keySet();
             String[] words = wordSet.toArray(new String[0]);
             DataStream<Tuple3<Long, Integer, String>> initial = env.addSource(new ZipfianWordStreamGenerator(words, zipfExp, rate, tmsp, delay));
             DataStream<Tuple4<Long, Long, Integer,String>> zipfian = initial.map(x -> new Tuple4<>(x.f0, System.currentTimeMillis(), x.f1, x.f2))
@@ -125,7 +127,7 @@ public class StreamFactory {
     }
 
 
-    public DataStream<InputTuple> createDataStream(String source, int delay, int duration, int rate) throws Exception {
+    public DataStream<InputTuple> createDataStream(String source, int delay, int duration, int rate, MinioConfiguration minio, Logger LOG) throws Exception {
         DataStream<InputTuple> dataStream;
         int parallelismBefore = env.getParallelism();
         env.setParallelism(1);
@@ -139,8 +141,8 @@ public class StreamFactory {
                 break;
             case "pareto_2D_generator":             dataStream = createPareto2DStream(1.0, 10.0 , rate, (long) duration, delay);
                 break;
-            case "zipfian_word_generator":          dataStream = createZipfianWordStream("wiki-news-300d-1K.vec", 2.0, rate, (long) duration, delay)
-                    .map(new WordsToEmbeddingMapper("wiki-news-300d-1K.vec"));
+            case "zipfian_word_generator":          dataStream = createZipfianWordStream("1K_embeddings", 2.0, rate, (long) duration, delay, minio, LOG)
+                    .map(new WordsToEmbeddingMapper("1K_embeddings", minio, LOG));
                 break;
             default:                                dataStream = create2DArrayStream(source);
 

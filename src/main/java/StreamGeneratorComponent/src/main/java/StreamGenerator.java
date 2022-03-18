@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 
 public class StreamGenerator {
@@ -45,7 +44,7 @@ public class StreamGenerator {
         LOG.info("Enter main.");
 
         DataStream<InputTuple> firstStream = streamFactory
-                .createDataStream(options.getFirstStream(), options.getDelay(), options.getDuration(), options.getRate());
+                .createDataStream(options.getFirstStream(), options.getDelay(), options.getDuration(), options.getRate(), options.getMinio(), LOG);
         FlinkKafkaProducer<InputTuple> leftProducer = new FlinkKafkaProducer<>(
                 leftOutputTopic,
                 new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() {}), env.getConfig()),
@@ -53,7 +52,7 @@ public class StreamGenerator {
         firstStream.addSink(leftProducer);
         if (options.hasSecondStream()) {
             DataStream<InputTuple> secondStream = streamFactory
-                    .createDataStream(options.getSecondStream(), options.getDelay(), options.getDuration(), options.getRate());
+                    .createDataStream(options.getSecondStream(), options.getDelay(), options.getDuration(), options.getRate(), options.getMinio(), LOG);
             FlinkKafkaProducer<InputTuple> rightProducer = new FlinkKafkaProducer<>(
                     rightOutputTopic,
                     new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() {}), env.getConfig()),

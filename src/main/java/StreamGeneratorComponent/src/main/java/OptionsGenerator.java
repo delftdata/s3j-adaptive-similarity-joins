@@ -1,3 +1,4 @@
+import CustomDataTypes.MinioConfiguration;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.Option;
 
@@ -17,6 +18,15 @@ public class OptionsGenerator {
 
     @Option(name="-duration", usage="The duration of the stream")
     private int duration = 10;
+
+    @Option(name="-minioEndpoint", usage="Endpoint to connect to MinIO.")
+    private String minioEndpoint = "localhost:9000";
+
+    @Option(name="-minioAccessKey", usage="Access key for MinIO.")
+    private String minioAccessKey = "minio";
+
+    @Option(name="-minioSecretKey", usage="Secret key for MinIO")
+    private String minioSecretKey = "minio123";
 
     // All option-less arguments
     @Argument
@@ -47,5 +57,9 @@ public class OptionsGenerator {
 
     public int getRate() {
         return rate;
+    }
+
+    public MinioConfiguration getMinio(){
+        return new MinioConfiguration(minioEndpoint, minioAccessKey, minioSecretKey);
     }
 }
