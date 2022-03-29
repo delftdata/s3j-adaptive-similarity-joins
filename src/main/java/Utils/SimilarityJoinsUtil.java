@@ -15,8 +15,7 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.slf4j.Logger;
-import scala.Int;
-import scala.concurrent.java8.FuturesConvertersImpl;
+
 
 import java.io.File;
 import java.io.FileWriter;
