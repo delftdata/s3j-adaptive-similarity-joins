@@ -8,12 +8,15 @@ import Operators.SimilarityJoinSelf;
 import Statistics.LoadBalancingStats;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.connector.kafka.source.KafkaSource;
+import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -95,11 +98,13 @@ public class onlinePartitioningForSsj {
         // The space partitioning operator.
         // Here we partition the incoming data based on proximity of the given centroids and the given threshold.
         // Basically the partitioning is happening by augmenting tuples with key attributes.
+        KafkaSource<InputTuple> leftKafkaStream = KafkaSource.<InputTuple>builder()
+                .setProperties(leftInputProperties)
+                .setTopics(leftInputTopic)
+                .setValueOnlyDeserializer(new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()))
+                .build();
         DataStream<InputTuple> firstStream = env
-                .addSource(new FlinkKafkaConsumer<>(
-                        leftInputTopic,
-                        new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()),
-                        leftInputProperties))
+                .fromSource(leftKafkaStream, WatermarkStrategy.forMonotonousTimestamps(), "Kafka Left Stream")
                 .map(new IngestTimeMapper());
         DataStream<SPTuple> ppData1 = firstStream.
                 flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
@@ -110,11 +115,13 @@ public class onlinePartitioningForSsj {
 
         KeyedStream<SPTuple, Integer> keyedData = ppData1.keyBy(t -> t.f0);
         if (options.hasSecondStream()) {
+            KafkaSource<InputTuple> rightKafkaStream = KafkaSource.<InputTuple>builder()
+                    .setProperties(rightInputProperties)
+                    .setTopics(rightInputTopic)
+                    .setValueOnlyDeserializer(new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()))
+                    .build();
             DataStream<InputTuple> secondStream = env
-                    .addSource(new FlinkKafkaConsumer<>(
-                            rightInputTopic,
-                            new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() { }), env.getConfig()),
-                            rightInputProperties))
+                    .fromSource(rightKafkaStream, WatermarkStrategy.forMonotonousTimestamps(), "Kafka Right Stream")
                     .map(new IngestTimeMapper());
 
             DataStream<SPTuple> ppData2 = secondStream.
@@ -155,9 +162,9 @@ public class onlinePartitioningForSsj {
         String outputStatsTopic = "pipeline-out-stats";
         String allLatenciesTopic = "all-latencies";
         LoadBalancingStats stats = new LoadBalancingStats(jobUUID, properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
-        stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
-        stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
-        stats.prepareSizePerGroup(lpData);
+//        stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
+//        stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
+//        stats.prepareSizePerGroup(lpData);
 //        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
         stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream, 0.2);
 
