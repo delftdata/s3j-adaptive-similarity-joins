@@ -42,7 +42,7 @@ public class onlinePartitioningForSsj {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
-    static String jobUUID = UUID.randomUUID().toString();
+//    static String jobUUID = UUID.randomUUID().toString();
 
     public static void main(String[] args) throws Exception{
         // Arg parsing
@@ -147,7 +147,7 @@ public class onlinePartitioningForSsj {
         similarityOperator.setSideJoins(sideJoins);
         final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats = new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
         SingleOutputStreamOperator<FinalOutput>
-                unfilteredSelfJoinedStream = lpData
+                unfilteredJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
                 .flatMap(similarityOperator).uid("similarityJoin");
 
@@ -161,18 +161,18 @@ public class onlinePartitioningForSsj {
 
         String outputStatsTopic = "pipeline-out-stats";
         String allLatenciesTopic = "all-latencies";
-        LoadBalancingStats stats = new LoadBalancingStats(jobUUID, properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
+//        LoadBalancingStats stats = new LoadBalancingStats(jobUUID, properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
 //        stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
 //        stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
 //        stats.prepareSizePerGroup(lpData);
 //        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
-        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredSelfJoinedStream, 0.2);
+//        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredJoinedStream, 0.2);
 
         SingleOutputStreamOperator<FinalOutput>
-                selfJoinedStream = unfilteredSelfJoinedStream
+                selfJoinedStream = unfilteredJoinedStream
                 .process(new CustomFiltering(sideStats));
 
-//        unfilteredSelfJoinedStream.map(new ShortFinalOutputMapper()).addSink(myProducer);
+       selfJoinedStream.map(new ShortFinalOutputMapper()).addSink(myProducer);
 
 //        stream.addSink(myProducer);
         // Measure the average latency per tuple
