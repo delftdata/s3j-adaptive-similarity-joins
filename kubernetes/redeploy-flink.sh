@@ -9,8 +9,8 @@ done
 kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edit --serviceaccount=default:default
 $FLINK_HOME/bin/kubernetes-session.sh \
     -Dkubernetes.cluster-id=my-first-flink-cluster \
-    -Dkubernetes.container.image=gsiachamis/flink:1.15-snapshot-delta \
-    -Dstate.backend=rocksdb \
+    -Dkubernetes.container.image=gsiachamis/flink:1.15-snapshot-delta-1.0 \
+    -Dstate.backend=hashmap \
     -Dstate.checkpoints.dir=s3://flink/checkpoints \
     -Dstate.savepoints.dir=s3://flink/savepoints \
     -Ds3.endpoint=http://$(kubectl get svc | grep 'minio ' | awk '{print $3}'):9000 \
