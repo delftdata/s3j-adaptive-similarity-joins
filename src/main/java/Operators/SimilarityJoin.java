@@ -73,10 +73,13 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
             toCompare = "single";
         }
 
-
+        LOG.info("Machine id: " + incoming.f10);
+        long insertionStart = System.currentTimeMillis();
         insertToState(incoming);
+        LOG.info("Insert to state took: " + (System.currentTimeMillis() - insertionStart));
 
 
+        long retrieveStart = System.currentTimeMillis();
         List<FinalTuple> itemsToCompare = new ArrayList<>();
         List<FinalTuple> itemsToEmit = new ArrayList<>();
         if(joinState.contains(toCompare)) {
@@ -93,8 +96,10 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                 itemsToCompare.addAll(toCompareMap.get("inner"));
                 itemsToCompare.addAll(toCompareMap.get("outlier"));
             }
+            LOG.info("Retrieve from state took: " + (System.currentTimeMillis() - retrieveStart));
 
 
+            long comparisonStart = System.currentTimeMillis();
             for (FinalTuple t : itemsToCompare) {
 
 //            LOG.warn(incoming.toString()+", "+t.toString());
@@ -105,26 +110,32 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
 
                 Double[] tEmbed = t.f9;
                 if ((incoming.f8 > t.f8 && isSelfJoin()) || incoming.f11.equals("left")) {
+                    boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh;
                     collector.collect(
                             new FinalOutput(
-                                    (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
+                                    sim,
                                     incoming,
                                     t,
                                     System.currentTimeMillis()
                             )
                     );
+
                 } else {
+                    boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh;
                     collector.collect(
                             new FinalOutput(
-                                    (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
+                                    sim,
                                     t,
                                     incoming,
                                     System.currentTimeMillis()
                             )
                     );
+
                 }
             }
+            LOG.info("Perform comparisons took: " + (System.currentTimeMillis() - comparisonStart));
 
+            long groupedEmissionStart = System.currentTimeMillis();
             for(FinalTuple t : itemsToEmit){
 //                LOG.warn(incoming.toString()+", "+t.toString());
                 if(isSelfJoin() && incoming.f8 == t.f8){
@@ -150,6 +161,8 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                     );
                 }
             }
+            LOG.info("Emitting items of the same group took: " + (System.currentTimeMillis() - groupedEmissionStart));
+
         }
     }
 
