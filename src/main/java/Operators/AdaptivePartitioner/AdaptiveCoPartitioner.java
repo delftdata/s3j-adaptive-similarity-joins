@@ -31,13 +31,13 @@ public class AdaptiveCoPartitioner extends KeyedCoProcessFunction<Integer, SPTup
     @Override
     public void processElement1(SPTuple t, Context context, Collector<FinalTuple> collector) throws Exception {
         companion.assignGroup(t, collector, "left");
-        collectStats(t, context);
+//        collectStats(t, context);
     }
 
     @Override
     public void processElement2(SPTuple t, Context context, Collector<FinalTuple> collector) throws Exception {
         companion.assignGroup(t, collector, "right");
-        collectStats(t, context);
+//        collectStats(t, context);
     }
 
     @Override
