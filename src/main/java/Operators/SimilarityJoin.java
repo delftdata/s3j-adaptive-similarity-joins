@@ -28,10 +28,12 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
     private Logger LOG;
     OutputTag<Tuple3<Long, Integer, Integer>> sideJoins;
     MapState<String, HashMap<String, List<FinalTuple>>> joinState;
+    private int counter;
 
     public SimilarityJoin(Double dist_thresh) throws Exception{
         this.dist_thresh = dist_thresh;
         this.LOG = LoggerFactory.getLogger(this.getClass().getName());
+        this.counter = 0;
     }
 
     public void setSideJoins(OutputTag<Tuple3<Long, Integer, Integer>> sideJoins) {
@@ -111,25 +113,61 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                 Double[] tEmbed = t.f9;
                 if ((incoming.f8 > t.f8 && isSelfJoin()) || incoming.f11.equals("left")) {
                     boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh;
-                    collector.collect(
-                            new FinalOutput(
-                                    sim,
-                                    incoming,
-                                    t,
-                                    System.currentTimeMillis()
-                            )
-                    );
+                    if (sim) {
+                        collector.collect(
+                                new FinalOutput(
+                                        sim,
+                                        incoming,
+                                        t,
+                                        System.currentTimeMillis()
+                                )
+                        );
+                    }
+                    else{
+                        if (counter == 10000){
+                            collector.collect(
+                                    new FinalOutput(
+                                            sim,
+                                            incoming,
+                                            t,
+                                            System.currentTimeMillis()
+                                    )
+                            );
+                            counter = 0;
+                        }
+                        else {
+                            counter++;
+                        }
+                    }
 
                 } else {
                     boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh;
-                    collector.collect(
-                            new FinalOutput(
-                                    sim,
-                                    t,
-                                    incoming,
-                                    System.currentTimeMillis()
-                            )
-                    );
+                    if (sim) {
+                        collector.collect(
+                                new FinalOutput(
+                                        sim,
+                                        t,
+                                        incoming,
+                                        System.currentTimeMillis()
+                                )
+                        );
+                    }
+                    else{
+                        if(counter == 10000){
+                            collector.collect(
+                                    new FinalOutput(
+                                            sim,
+                                            t,
+                                            incoming,
+                                            System.currentTimeMillis()
+                                    )
+                            );
+                            counter = 0;
+                        }
+                        else {
+                            counter++;
+                        }
+                    }
 
                 }
             }
