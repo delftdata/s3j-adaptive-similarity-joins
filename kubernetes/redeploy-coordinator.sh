@@ -10,4 +10,4 @@ done
 
 kubectl get svc coordinator --no-headers | awk '{print $4}'
 
-sudo ./update_hostname.sh coordinator "$(kubectl get svc coordinator --no-headers | awk '{print $4}')"
+./update_hostname.sh coordinator "$(kubectl get svc coordinator --no-headers | awk '{print $4}')"

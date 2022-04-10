@@ -25,7 +25,8 @@ $FLINK_HOME/bin/kubernetes-session.sh \
     -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.15-SNAPSHOT-DELTA.jar \
     -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.15-SNAPSHOT-DELTA.jar \
     -Dkubernetes.rest-service.exposed.type="LoadBalancer" \
-    -Dstate.backend.incremental=true
+    -Dstate.backend.incremental=true \
+    -Dtaskmanager.memory.managed.size=0m
 kubectl patch deployment my-first-flink-cluster --type json -p '[{"op": "add", "path": "/spec/template/spec/containers/0/envFrom", "value": [{"configMapRef": {"name": "env-config"}}] }]'
 
 while [[ "$(kubectl get svc my-first-flink-cluster-rest --no-headers | awk '{if ($4=="<pending>" || $4=="<none>") print $4; else print "";}')" ]]; do
@@ -35,4 +36,4 @@ done
 
 kubectl get svc my-first-flink-cluster-rest --no-headers | awk '{url = "http://"$4":8081" ; system("open "url)}'
 
-sudo ./update_hostname.sh flink-rest "$(kubectl get svc my-first-flink-cluster-rest --no-headers | awk '{print $4}')"
+./update_hostname.sh flink-rest "$(kubectl get svc my-first-flink-cluster-rest --no-headers | awk '{print $4}')"
