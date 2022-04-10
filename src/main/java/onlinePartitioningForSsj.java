@@ -5,7 +5,6 @@ import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
 import Operators.SimilarityJoinSelf;
-import Statistics.LoadBalancingStats;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -16,15 +15,12 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.connector.kafka.source.KafkaSource;
-import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.util.OutputTag;
 import org.kohsuke.args4j.CmdLineParser;
@@ -34,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Properties;
-import java.util.UUID;
 
 
 public class onlinePartitioningForSsj {
@@ -43,7 +38,6 @@ public class onlinePartitioningForSsj {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
 
-//    static String jobUUID = UUID.randomUUID().toString();
 
     public static void main(String[] args) throws Exception{
         // Arg parsing
@@ -162,29 +156,15 @@ public class onlinePartitioningForSsj {
 
         String outputStatsTopic = "pipeline-out-stats";
         String allLatenciesTopic = "all-latencies";
-//        LoadBalancingStats stats = new LoadBalancingStats(jobUUID, properties, outputStatsTopic, allLatenciesTopic,options.getWindowLength());
-//        stats.prepareFinalComputationsPerMachine(unfilteredSelfJoinedStream);
-//        stats.prepareFinalComputationsPerGroup(unfilteredSelfJoinedStream);
-//        stats.prepareSizePerGroup(lpData);
-//        stats.prepareLatencyPerMachine(unfilteredSelfJoinedStream);
-//        stats.prepareSampledLatencyPercentilesPerMachine(unfilteredJoinedStream, 0.2);
 
-//        SingleOutputStreamOperator<FinalOutput>
-//                selfJoinedStream = unfilteredJoinedStream
-//                .process(new CustomFiltering(sideStats));
 
         unfilteredJoinedStream.map(new ShortFinalOutputMapper()).addSink(myProducer);
 
-//        stream.addSink(myProducer);
-        // Measure the average latency per tuple
-//        env.setParallelism(1);
-//        selfJoinedStream.map(new OneStepLatencyAverage());
 
         LOG.info(env.getExecutionPlan());
 
         // Execute
         JobExecutionResult result = env.execute("ssj");
-//        System.out.println("The job took " + result.getNetRuntime(TimeUnit.SECONDS) + " seconds to execute");
 
     }
 }
