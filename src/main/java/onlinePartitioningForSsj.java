@@ -139,6 +139,14 @@ public class onlinePartitioningForSsj {
             similarityOperator = new SimilarityJoinSelf(dist_threshold);
         }
 
+        String sideOutputTopic = "pipeline-side-out";
+        FlinkKafkaProducer<GroupLevelShortOutput> mySideOutputProducer = new FlinkKafkaProducer<>(
+                sideOutputTopic,
+                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<GroupLevelShortOutput>() {}), env.getConfig()),
+                properties
+        );
+        lpData.map(t -> new GroupLevelShortOutput(t.f7, t.f10, t.f2, t.f0, Long.valueOf(t.size()))).addSink(mySideOutputProducer);
+
         similarityOperator.setSideJoins(sideJoins);
         final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats = new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
         SingleOutputStreamOperator<FinalOutput>
@@ -148,7 +156,7 @@ public class onlinePartitioningForSsj {
 
 
         String outputTopic = "pipeline-out";
-        FlinkKafkaProducer<ShortFinalOutput> myProducer = new FlinkKafkaProducer<>(
+        FlinkKafkaProducer<ShortFinalOutput> myOutputProducer = new FlinkKafkaProducer<>(
                 outputTopic,
                 new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<ShortFinalOutput>() {}), env.getConfig()),
                 properties
@@ -158,7 +166,7 @@ public class onlinePartitioningForSsj {
         String allLatenciesTopic = "all-latencies";
 
 
-        unfilteredJoinedStream.map(new ShortFinalOutputMapper()).addSink(myProducer);
+        unfilteredJoinedStream.map(new ShortFinalOutputMapper()).addSink(myOutputProducer);
 
 
         LOG.info(env.getExecutionPlan());
