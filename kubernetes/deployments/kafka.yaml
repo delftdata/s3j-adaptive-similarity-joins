@@ -25,10 +25,17 @@ spec:
       transaction.state.log.min.isr: 1
       log.message.format.version: "3.0"
       inter.broker.protocol.version: "3.0"
+    resources:
+      requests:
+        memory: 8Gi
+        cpu: "2"
+      limits:
+        memory: 32Gi
+        cpu: "8"
     storage:
       type: persistent-claim
       class: standard
-      size: 30Gi
+      size: 100Gi
       deleteClaim: false
   zookeeper:
     replicas: 1
@@ -68,7 +75,7 @@ metadata:
   labels:
     strimzi.io/cluster: kafka-cluster
 spec:
-  partitions: 3
+  partitions: 5
   replicas: 1
 ---
 apiVersion: kafka.strimzi.io/v1beta2
@@ -79,5 +86,15 @@ metadata:
     strimzi.io/cluster: kafka-cluster
 spec:
   partitions: 1
+  replicas: 1
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: pipeline-side-out
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 5
   replicas: 1
 ---
