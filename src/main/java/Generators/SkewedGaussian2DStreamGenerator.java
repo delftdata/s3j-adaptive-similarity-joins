@@ -30,13 +30,15 @@ public class SkewedGaussian2DStreamGenerator implements SourceFunction<Tuple3<Lo
     private int delay;
     private volatile boolean isRunning = true;
     private transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
+    private int sleepInterval;
 
     public SkewedGaussian2DStreamGenerator(int seed, int rate, Long tmsp, int delay){
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
         this.rng = new Random(seed);
-        this.delay = delay;
+        this.delay = 1000*delay;
+        this.sleepInterval = this.delay/this.rate;
     }
 
 
@@ -73,9 +75,7 @@ public class SkewedGaussian2DStreamGenerator implements SourceFunction<Tuple3<Lo
                     tRate = rate;
                 }
             }
-            if(tRate == rate) {
-                TimeUnit.SECONDS.sleep(this.delay);
-            }
+        TimeUnit.MILLISECONDS.sleep(this.sleepInterval);
         }
     }
 

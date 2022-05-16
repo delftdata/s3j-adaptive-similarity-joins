@@ -27,13 +27,15 @@ public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Inte
     private int delay;
     private volatile boolean isRunning = true;
     private transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
+    private int sleepInterval;
 
     public Pareto2DStreamGenerator(Double scale, Double shape, int rate, Long tmsp, int delay){
         this.pareto =new ParetoDistribution(new Well19937c(42), scale, shape);
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
-        this.delay = delay;
+        this.delay = 1000*delay;
+        this.sleepInterval = this.delay/this.rate;
     }
 
 
@@ -70,9 +72,7 @@ public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Inte
                     tRate = rate;
                 }
             }
-            if(tRate == rate) {
-                TimeUnit.SECONDS.sleep(this.delay);
-            }
+        TimeUnit.MILLISECONDS.sleep(this.sleepInterval);
         }
     }
 

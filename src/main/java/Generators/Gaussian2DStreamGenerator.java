@@ -27,13 +27,15 @@ public class Gaussian2DStreamGenerator implements SourceFunction<Tuple3<Long, In
     private int delay;
     private volatile boolean isRunning = true;
     private transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
+    private int sleepInterval;
 
     public Gaussian2DStreamGenerator(int seed, int rate, Long tmsp, int delay){
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
         this.rng = new Random(seed);
-        this.delay = delay;
+        this.delay = 1000*delay;
+        this.sleepInterval = this.delay/this.rate;
     }
 
 

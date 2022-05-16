@@ -27,6 +27,7 @@ public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, I
     private int delay;
     private volatile boolean isRunning = true;
     private transient ListState<Tuple3<Long, Integer, String>> checkpointedTuples;
+    private int sleepInterval;
 
     public ZipfianWordStreamGenerator(String[] words, Double zipfExp, int rate, Long tmsp, int delay){
         this.wordArray = words;
@@ -34,7 +35,8 @@ public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, I
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
-        this.delay = delay;
+        this.delay = 1000*delay;
+        this.sleepInterval = this.delay/this.rate;
     }
 
 
@@ -70,9 +72,7 @@ public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, I
                     tRate = rate;
                 }
             }
-            if(tRate == rate) {
-                TimeUnit.SECONDS.sleep(this.delay);
-            }
+        TimeUnit.MILLISECONDS.sleep(this.sleepInterval);
         }
     }
 
