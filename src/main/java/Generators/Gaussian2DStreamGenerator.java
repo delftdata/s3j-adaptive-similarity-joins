@@ -17,17 +17,17 @@ import java.util.concurrent.TimeUnit;
 
 public class Gaussian2DStreamGenerator implements SourceFunction<Tuple3<Long, Integer, Double[]>>, CheckpointedFunction {
 
-    private int id = 0;
-    private Long timestamp = 0L;
-    private Tuple3<Long, Integer, Double[]> tuple3;
-    private Random rng;
-    private int rate;
-    private Long tmsp;
-    private int tRate;
-    private int delay;
-    private volatile boolean isRunning = true;
-    private transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
-    private int sleepInterval;
+    protected int id = 0;
+    protected Long timestamp = 0L;
+    protected Tuple3<Long, Integer, Double[]> tuple3;
+    protected Random rng;
+    protected int rate;
+    protected Long tmsp;
+    protected int tRate;
+    protected int delay;
+    protected volatile boolean isRunning = true;
+    protected transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
+    protected int sleepInterval;
 
     public Gaussian2DStreamGenerator(int seed, int rate, Long tmsp, int delay){
         this.tRate = rate;
@@ -72,9 +72,7 @@ public class Gaussian2DStreamGenerator implements SourceFunction<Tuple3<Long, In
                     tRate = rate;
                 }
             }
-            if(tRate == rate) {
-                TimeUnit.SECONDS.sleep(this.delay);
-            }
+            TimeUnit.MILLISECONDS.sleep(this.sleepInterval);
         }
     }
 

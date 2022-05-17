@@ -16,18 +16,18 @@ import java.util.concurrent.TimeUnit;
 
 public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, Integer, String>>, CheckpointedFunction {
 
-    private Integer id = 0;
-    private Long timestamp = 0L;
-    private Tuple3<Long, Integer, String> tuple3;
-    private final String[] wordArray;
-    private final ZipfDistribution zipf;
-    private final int rate;
-    private final Long tmsp;
-    private int tRate;
-    private int delay;
-    private volatile boolean isRunning = true;
-    private transient ListState<Tuple3<Long, Integer, String>> checkpointedTuples;
-    private int sleepInterval;
+    protected Integer id = 0;
+    protected Long timestamp = 0L;
+    protected Tuple3<Long, Integer, String> tuple3;
+    protected final String[] wordArray;
+    protected final ZipfDistribution zipf;
+    protected final int rate;
+    protected final Long tmsp;
+    protected int tRate;
+    protected int delay;
+    protected volatile boolean isRunning = true;
+    protected transient ListState<Tuple3<Long, Integer, String>> checkpointedTuples;
+    protected int sleepInterval;
 
     public ZipfianWordStreamGenerator(String[] words, Double zipfExp, int rate, Long tmsp, int delay){
         this.wordArray = words;
