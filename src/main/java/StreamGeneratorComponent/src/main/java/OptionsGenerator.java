@@ -16,6 +16,9 @@ public class OptionsGenerator {
     @Option(name="-rate", usage="The rate of datapoints per time unit.")
     private int rate = 1000;
 
+    @Option(name="-dimensions", usage="Specify the dimensions of the the records' values.")
+    private int dimensions = 2;
+
     @Option(name="-duration", usage="The duration of the stream")
     private int duration = 10;
 
@@ -61,5 +64,9 @@ public class OptionsGenerator {
 
     public MinioConfiguration getMinio(){
         return new MinioConfiguration(minioEndpoint, minioAccessKey, minioSecretKey);
+    }
+
+    public int getDimensions() {
+        return dimensions;
     }
 }
