@@ -441,7 +441,7 @@ public class SimilarityJoinsUtil {
         LOG.info("Embeddings file read.");
 
         try (Stream<String> lines = data.lines()) {
-            lines.map(l -> l.split(" ",2))
+            lines.skip(1).map(l -> l.split(" ",2))
                     .forEach(l -> wordEmbeddings.put(l[0], arrayStringToDouble(l[1].split(" "), 300)));
         }
 
