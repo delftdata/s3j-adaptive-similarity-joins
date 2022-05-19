@@ -72,7 +72,14 @@ public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, I
                     tRate = rate;
                 }
             }
-        TimeUnit.MILLISECONDS.sleep(this.sleepInterval);
+            busyWaitMicros(this.sleepInterval);
+        }
+    }
+
+    public static void busyWaitMicros(long micros){
+        long waitUntil = System.nanoTime() + (micros * 1_000);
+        while(waitUntil > System.nanoTime()){
+            ;
         }
     }
 

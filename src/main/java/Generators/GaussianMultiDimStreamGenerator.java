@@ -34,7 +34,7 @@ public class GaussianMultiDimStreamGenerator extends Gaussian2DStreamGenerator{
                     tRate = rate;
                 }
             }
-            TimeUnit.MILLISECONDS.sleep(this.sleepInterval);
+            busyWaitMicros(this.sleepInterval);
         }
     }
 }

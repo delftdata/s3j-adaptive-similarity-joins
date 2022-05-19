@@ -34,7 +34,7 @@ public class Uniform2DStreamGenerator implements SourceFunction<Tuple3<Long, Int
         this.rate = rate;
         this.tmsp = tmsp;
         this.rng = new Random(seed);
-        this.delay = 1000000*delay;
+        this.delay = 1_000_000*delay;
         this.sleepInterval = this.delay/this.rate;
     }
 

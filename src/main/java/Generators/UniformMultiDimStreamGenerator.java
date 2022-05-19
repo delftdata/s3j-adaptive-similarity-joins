@@ -33,7 +33,7 @@ public class UniformMultiDimStreamGenerator extends Uniform2DStreamGenerator{
                     tRate = rate;
                 }
             }
-            TimeUnit.MILLISECONDS.sleep(this.sleepInterval);
+            busyWaitMicros(this.sleepInterval);
         }
     }
 }
