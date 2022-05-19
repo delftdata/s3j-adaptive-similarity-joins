@@ -150,7 +150,16 @@ public class StreamFactory {
     }
 
 
-    public DataStream<InputTuple> createDataStream(String source, int delay, int duration, int rate, MinioConfiguration minio, Logger LOG, int dimensions) throws Exception {
+    public DataStream<InputTuple> createDataStream(
+            String source,
+            int delay,
+            int duration,
+            int rate,
+            MinioConfiguration minio,
+            Logger LOG,
+            int dimensions,
+            String embeddingsFile) throws Exception {
+
         DataStream<InputTuple> dataStream;
         int parallelismBefore = env.getParallelism();
         env.setParallelism(1);

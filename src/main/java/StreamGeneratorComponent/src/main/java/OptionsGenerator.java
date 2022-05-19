@@ -31,6 +31,9 @@ public class OptionsGenerator {
     @Option(name="-minioSecretKey", usage="Secret key for MinIO")
     private String minioSecretKey = "minio123";
 
+    @Option(name="-embeddings", usage="Specify embeddings to be used.")
+    private String embeddingsFile= "1K_embeddings";
+
     // All option-less arguments
     @Argument
     private List<String> streams = new ArrayList<>();
@@ -69,4 +72,9 @@ public class OptionsGenerator {
     public int getDimensions() {
         return dimensions;
     }
+
+    public String getEmbeddingsFile() {
+        return embeddingsFile;
+    }
+
 }
