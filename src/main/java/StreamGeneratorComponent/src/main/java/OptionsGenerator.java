@@ -10,16 +10,16 @@ public class OptionsGenerator {
     @Option(name="-kafkaURL", usage="URL to Kafka")
     private String kafkaURL = "localhost:9092";
 
-    @Option(name="-delay", usage="Specify the delay between generated data.")
+    @Option(name="-delay", usage="Delay between generated data.")
     private int delay = 1;
 
-    @Option(name="-rate", usage="The rate of datapoints per time unit.")
+    @Option(name="-rate", usage="Rate of datapoints per time unit.")
     private int rate = 1000;
 
-    @Option(name="-dimensions", usage="Specify the dimensions of the the records' values.")
+    @Option(name="-dimensions", usage="Dimensions of the the records' values.")
     private int dimensions = 2;
 
-    @Option(name="-duration", usage="The duration of the stream")
+    @Option(name="-duration", usage="Duration of the stream")
     private int duration = 10;
 
     @Option(name="-minioEndpoint", usage="Endpoint to connect to MinIO.")
@@ -31,8 +31,11 @@ public class OptionsGenerator {
     @Option(name="-minioSecretKey", usage="Secret key for MinIO")
     private String minioSecretKey = "minio123";
 
-    @Option(name="-embeddings", usage="Specify embeddings to be used.")
+    @Option(name="-embeddings", usage="Embeddings to be used.")
     private String embeddingsFile= "1K_embeddings";
+
+    @Option(name="-seed", usage="Seed for the random generator.")
+    private int seed = 42;
 
     // All option-less arguments
     @Argument
@@ -75,6 +78,10 @@ public class OptionsGenerator {
 
     public String getEmbeddingsFile() {
         return embeddingsFile;
+    }
+
+    public int getSeed() {
+        return seed;
     }
 
 }

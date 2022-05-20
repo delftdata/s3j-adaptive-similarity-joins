@@ -158,7 +158,8 @@ public class StreamFactory {
             MinioConfiguration minio,
             Logger LOG,
             int dimensions,
-            String embeddingsFile) throws Exception {
+            String embeddingsFile,
+            int seed) throws Exception {
 
         DataStream<InputTuple> dataStream;
         int parallelismBefore = env.getParallelism();
@@ -166,13 +167,13 @@ public class StreamFactory {
 
         switch(source) {
             case "gaussian_2D_generator":
-                dataStream = createGaussianMDStream(42, rate, (long) duration, delay, 2);
+                dataStream = createGaussianMDStream(seed, rate, (long) duration, delay, 2);
                 break;
             case "skewed_gaussian_2D_generator":
-                dataStream = createSkewedGaussian2DStream(42, rate, (long) duration, delay);
+                dataStream = createSkewedGaussian2DStream(seed, rate, (long) duration, delay);
                 break;
             case "uniform_2D_generator":
-                dataStream = createUniformMDStream(42, rate, (long) duration, delay, 2);
+                dataStream = createUniformMDStream(seed, rate, (long) duration, delay, 2);
                 break;
             case "pareto_2D_generator":
                 dataStream = createPareto2DStream(1.0, 10.0 , rate, (long) duration, delay);
@@ -188,10 +189,10 @@ public class StreamFactory {
                                 .map(new WordsToEmbeddingMapper("1K_embeddings", minio, LOG));
                 break;
             case "uniform_MD_generator":
-                dataStream = createUniformMDStream(42, rate, (long) duration, delay, dimensions);
+                dataStream = createUniformMDStream(seed, rate, (long) duration, delay, dimensions);
                 break;
             case "gaussian_MD_generator":
-                dataStream = createGaussianMDStream(42, rate, (long) duration, delay, dimensions);
+                dataStream = createGaussianMDStream(seed, rate, (long) duration, delay, dimensions);
                 break;
             default:
                 dataStream = create2DArrayStream(source);
