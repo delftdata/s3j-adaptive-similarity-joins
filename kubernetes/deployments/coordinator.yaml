@@ -11,7 +11,8 @@ spec:
     spec:
       containers:
       - name: coordinator
-        image: gsiachamis/ssj-coordinator
+        image: gsiachamis/ssj-coordinator:parts-1.0
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
         envFrom:

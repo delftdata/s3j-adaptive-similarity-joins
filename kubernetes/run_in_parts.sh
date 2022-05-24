@@ -2,6 +2,7 @@
 
 kafka_bootstrap=$(kubectl get svc kafka-cluster-kafka-extern-bootstrap -n kafka --no-headers | awk '{print $4}')
 input="$PWD/experiments.txt"
+metrics=Flat_Map.numRecordsInPerSecond,Flat_Map.numRecordsOutPerSecond,Sink__Unnamed.KafkaProducer.record-send-rate
 
 while IFS= read -r line
 do
@@ -29,8 +30,9 @@ do
   printf 'Experiment finished... \n'
 
   printf '\nCalculating stats...\n'
-  curl http://coordinator:5000/start_stats
-  sleep 120
+  curl http://coordinator:5000/start_stats?parallelism=1
+  sleep 20
+  python /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-experiment-results/monitor_stats.py
   printf '\nStats calculated\n'
 
   printf '\nCreating result plots...\n'
@@ -38,6 +40,13 @@ do
   python /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-experiment-results/main.py -k "$kafka_bootstrap"":9094" -e "$offset" -n "$name"
   python /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-experiment-results/draw.py -n "$name"
   printf '\nPlots are ready...\n'
+
+  printf '\nReset experimental environment\n'
+  curl http://coordinator:5000/reset_environment
+  printf "\n\n"
+  printf 'Reset kafka topics...\n'
+  ./reset_kafka_topics.sh < /dev/null
+  printf '\nEverything is reset!\n\n'
 
 done < "$input"
 

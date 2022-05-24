@@ -24,7 +24,7 @@ gcloud container clusters create $CLUSTER \
 gcloud container clusters create $CLUSTER \
    --zone $ZONE \
    --machine-type "e2-standard-16" \
-   --num-nodes=3 \
+   --num-nodes=4 \
    --disk-size=30
 
 # to get kubectl
