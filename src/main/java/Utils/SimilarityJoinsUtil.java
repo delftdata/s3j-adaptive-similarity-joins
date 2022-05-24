@@ -15,23 +15,41 @@ import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
-import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public class SimilarityJoinsUtil {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
+
+    public static Predicate<String> isContained(Set<String> embeddingsKeys){
+
+        return p -> {
+            String[] words = p.split("\\s+");
+            for(String w : words){
+                if(embeddingsKeys.contains(w)){
+                    return true;
+                }
+            }
+            return false;
+        };
+    }
+
+    private static final Logger LOG = LoggerFactory.getLogger(SimilarityJoinsUtil.class);
 
     public static HashMap<Integer, Double[]> RandomCentroids(int numCentroids, int dimension){
 
@@ -451,11 +469,60 @@ public class SimilarityJoinsUtil {
         return wordEmbeddings;
     }
 
+
+    public static HashMap<String, Double[]> readEmbeddingsLocal(String filename)
+            throws Exception{
+
+        HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
+
+        LOG.info("readEmbeddings function");
+
+
+        LOG.info("Embeddings file read.");
+
+        try (Stream<String> lines = Files.lines(Paths.get(filename))) {
+            lines.skip(1).map(l -> l.split(" ",2))
+                    .forEach(l -> wordEmbeddings.put(l[0], arrayStringToDouble(l[1].split(" "), 300)));
+        }
+
+        LOG.info("Embeddings array created.");
+
+        return wordEmbeddings;
+    }
+
+    public static void cleanDataset(String embeddingsFile, String datasetFile) throws Exception {
+
+        System.out.println("Let's read embeddings");
+        Long startTime = System.currentTimeMillis();
+        HashMap<String, Double[]> embeddings = readEmbeddingsLocal(embeddingsFile);
+        System.out.println("Done with embeddings");
+        System.out.format("It took %d seconds\n",(System.currentTimeMillis()-startTime)/1000);
+        Set<String> keys = embeddings.keySet();
+
+        Stream<String> filteredLines;
+        System.out.println("Start reading the dataset.");
+        Long startTimeData = System.currentTimeMillis();
+        try (Stream<String> lines = Files.lines(Paths.get(datasetFile))) {
+            try(PrintWriter pw = new PrintWriter(Files.newBufferedWriter(
+                    Paths.get("/Users/gsiachamis/Dropbox/My Mac (Georgios’s MacBook Pro)/Documents/GitHub/filteredIMDB_10M_all.txt")))) {
+                lines
+                        .skip(1)
+                        .map(l -> l.split("\t")[2])
+//                        .limit(1_000_000)
+                        .filter(isContained(keys))
+                        .forEach(pw::println);
+            }
+        }
+        System.out.println("Read all (~10M) rows.");
+        System.out.format("It took %d seconds\n",(System.currentTimeMillis()-startTimeData)/1000);
+
+    }
+
     public static void main(String[] args) throws Exception{
-//        HashMap<String, Double[]> embeddings = readEmbeddings("wiki-news-300d-1K.vec");
-//        Set<String> embKeys = embeddings.keySet();
-//        createZipfianWordStream(embKeys, 1000, 10);
-        createComplex2DStream(1000,10);
+        cleanDataset(
+                "/Users/gsiachamis/PycharmProjects/clustering_embeddings/wiki-news-300d-1M.vec",
+                "/Users/gsiachamis/Dropbox/My Mac (Georgios’s MacBook Pro)/Documents/PhD/Datasets/SSJ/IMDB-movies/title.basics.tsv"
+        );
     }
 
 
