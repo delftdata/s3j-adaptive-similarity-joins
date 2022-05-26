@@ -149,6 +149,19 @@ public class StreamFactory {
         return null;
     }
 
+    public DataStream<Tuple4<Long, Long, Integer, String>> createIMDBStream(String imdbFile, int rate, Long tmsp, int delay, MinioConfiguration minio, Logger LOG){
+        DataStream<Tuple3<Long, Integer, String>> initial = env.addSource(new IMDBStreamGenerator(imdbFile, rate, tmsp, delay, minio));
+        DataStream<Tuple4<Long, Long, Integer,String>> imdbTitles = initial.map(x -> new Tuple4<>(x.f0, System.currentTimeMillis(), x.f1, x.f2))
+                .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Long, Integer, String>>() {}));
+        imdbTitles = imdbTitles.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple4<Long, Long, Integer, String>>() {
+            @Override
+            public long extractAscendingTimestamp(Tuple4<Long, Long, Integer, String> t) {
+                return t.f0;
+            }
+        });
+        return imdbTitles;
+    }
+
 
     public DataStream<InputTuple> createDataStream(
             String source,
@@ -159,6 +172,7 @@ public class StreamFactory {
             Logger LOG,
             int dimensions,
             String embeddingsFile,
+            String imdbFile,
             int seed) throws Exception {
 
         DataStream<InputTuple> dataStream;
@@ -193,6 +207,10 @@ public class StreamFactory {
                 break;
             case "gaussian_MD_generator":
                 dataStream = createGaussianMDStream(seed, rate, (long) duration, delay, dimensions);
+                break;
+            case "imdb_stream_generator":
+                dataStream = createIMDBStream(imdbFile, rate, (long) duration, delay, minio, LOG)
+                        .map(new WordsToEmbeddingMapper(embeddingsFile, minio, LOG));
                 break;
             default:
                 dataStream = create2DArrayStream(source);

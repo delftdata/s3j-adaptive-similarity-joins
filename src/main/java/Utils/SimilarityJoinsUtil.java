@@ -18,10 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintWriter;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -499,7 +496,6 @@ public class SimilarityJoinsUtil {
         System.out.format("It took %d seconds\n",(System.currentTimeMillis()-startTime)/1000);
         Set<String> keys = embeddings.keySet();
 
-        Stream<String> filteredLines;
         System.out.println("Start reading the dataset.");
         Long startTimeData = System.currentTimeMillis();
         try (Stream<String> lines = Files.lines(Paths.get(datasetFile))) {

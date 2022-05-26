@@ -37,6 +37,9 @@ public class OptionsGenerator {
     @Option(name="-seed", usage="Seed for the random generator.")
     private int seed = 42;
 
+    @Option(name="-dataset", usage="The dataset to be streamed.")
+    private String dataset;
+
     // All option-less arguments
     @Argument
     private List<String> streams = new ArrayList<>();
@@ -82,6 +85,10 @@ public class OptionsGenerator {
 
     public int getSeed() {
         return seed;
+    }
+
+    public String getDataset() {
+        return dataset;
     }
 
 }

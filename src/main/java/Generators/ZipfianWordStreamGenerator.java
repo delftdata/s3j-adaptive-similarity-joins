@@ -35,7 +35,7 @@ public class ZipfianWordStreamGenerator implements SourceFunction<Tuple3<Long, I
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
-        this.delay = 1000*delay;
+        this.delay = 1_000_000*delay;
         this.sleepInterval = this.delay/this.rate;
     }
 

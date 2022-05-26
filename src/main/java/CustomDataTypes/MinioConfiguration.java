@@ -1,10 +1,14 @@
 package CustomDataTypes;
 
-public class MinioConfiguration {
+import java.io.Serializable;
 
-    private final String endpoint;
-    private final String accessKey;
-    private final String secretKey;
+public class MinioConfiguration implements Serializable {
+
+    private String endpoint;
+    private String accessKey;
+    private String secretKey;
+
+    public MinioConfiguration(){}
 
     public MinioConfiguration(String endpoint, String accessKey, String secretKey){
         this.endpoint = "http://"+endpoint;

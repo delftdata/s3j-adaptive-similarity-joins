@@ -45,7 +45,8 @@ public class StreamGenerator {
 
         DataStream<InputTuple> firstStream = streamFactory
                 .createDataStream(options.getFirstStream(), options.getDelay(), options.getDuration(), options.getRate(),
-                        options.getMinio(), LOG, options.getDimensions(), options.getEmbeddingsFile(), options.getSeed());
+                        options.getMinio(), LOG, options.getDimensions(), options.getEmbeddingsFile(), options.getDataset(),
+                        options.getSeed());
         FlinkKafkaProducer<InputTuple> leftProducer = new FlinkKafkaProducer<>(
                 leftOutputTopic,
                 new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() {}), env.getConfig()),
@@ -55,7 +56,7 @@ public class StreamGenerator {
             DataStream<InputTuple> secondStream = streamFactory
                     .createDataStream(options.getSecondStream(), options.getDelay(), options.getDuration(),
                             options.getRate(), options.getMinio(), LOG, options.getDimensions(), options.getEmbeddingsFile(),
-                            options.getSeed());
+                            options.getDataset(), options.getSeed());
             FlinkKafkaProducer<InputTuple> rightProducer = new FlinkKafkaProducer<>(
                     rightOutputTopic,
                     new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<InputTuple>() {}), env.getConfig()),

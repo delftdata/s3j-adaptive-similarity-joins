@@ -27,7 +27,6 @@ public class Options {
     @Option(name="-parallelism", usage="Define the desired level of parallelism. DEFAULT: 10")
     private int parallelism = 10;
 
-
     // Getters, setters, etc
     public boolean hasSecondStream() { return twoStreams; }
 
