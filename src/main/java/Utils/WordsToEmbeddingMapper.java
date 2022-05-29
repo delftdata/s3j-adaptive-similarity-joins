@@ -27,19 +27,28 @@ public class WordsToEmbeddingMapper implements MapFunction<Tuple4<Long, Long, In
         String[] sentence = t.f3.split(" ");
         Set<String> keys = wordEmbeddings.keySet();
         int sum = 0;
-        for(String word : sentence){
-            if(keys.contains(word)){
-                sum += 1;
-                Double[] tmp = wordEmbeddings.get(word);
-                for(int i=0; i < 300; i++){
-                    embedding[i] += tmp[i];
+        System.out.println(Arrays.toString(sentence));
+        try {
+            for (String word : sentence) {
+                if (keys.contains(word)) {
+                    sum += 1;
+                    Double[] tmp = wordEmbeddings.get(word);
+                    for (int i = 0; i < 300; i++) {
+                        embedding[i] += tmp[i];
+                    }
+                }
+            }
+            if (sum != 0) {
+                for (int i = 0; i < 300; i++) {
+                    embedding[i] = embedding[i] / sum;
                 }
             }
         }
-        if(sum != 0) {
-            for (int i = 0; i < 300; i++) {
-                embedding[i] = embedding[i] / sum;
-            }
+        catch(Exception e){
+            e.printStackTrace();
+            System.out.println(Arrays.toString(sentence));
+            System.out.println(Arrays.toString(embedding));
+            System.exit(-1);
         }
         return new InputTuple(t.f0, t.f1, t.f2, embedding);
     }
