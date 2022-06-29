@@ -149,13 +149,13 @@ public class StreamFactory {
         return null;
     }
 
-    public DataStream<Tuple4<Long, Long, Integer, String>> createIMDBStream(String imdbFile, int rate, Long tmsp, int delay, MinioConfiguration minio, Logger LOG){
-        DataStream<Tuple3<Long, Integer, String>> initial = env.addSource(new IMDBStreamGenerator(imdbFile, rate, tmsp, delay, minio));
-        DataStream<Tuple4<Long, Long, Integer,String>> imdbTitles = initial.map(x -> new Tuple4<>(x.f0, System.currentTimeMillis(), x.f1, x.f2))
-                .returns(TypeInformation.of(new TypeHint<Tuple4<Long, Long, Integer, String>>() {}));
-        imdbTitles = imdbTitles.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<Tuple4<Long, Long, Integer, String>>() {
+    public DataStream<InputTuple> createIMDBStream(String imdbFile, int rate, Long tmsp, int delay, MinioConfiguration minio, Logger LOG){
+        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new IMDBStreamGenerator(imdbFile, rate, tmsp, delay, minio));
+        DataStream<InputTuple> imdbTitles = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
+                .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
+        imdbTitles = imdbTitles.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
             @Override
-            public long extractAscendingTimestamp(Tuple4<Long, Long, Integer, String> t) {
+            public long extractAscendingTimestamp(InputTuple t) {
                 return t.f0;
             }
         });
@@ -209,8 +209,7 @@ public class StreamFactory {
                 dataStream = createGaussianMDStream(seed, rate, (long) duration, delay, dimensions);
                 break;
             case "imdb_stream_generator":
-                dataStream = createIMDBStream(imdbFile, rate, (long) duration, delay, minio, LOG)
-                        .map(new WordsToEmbeddingMapper(embeddingsFile, minio, LOG));
+                dataStream = createIMDBStream(imdbFile, rate, (long) duration, delay, minio, LOG);
                 break;
             default:
                 dataStream = create2DArrayStream(source);

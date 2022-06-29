@@ -17,18 +17,20 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.Buffer;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
-public class IMDBStreamGenerator implements SourceFunction<Tuple3<Long, Integer, String>>, CheckpointedFunction {
+public class IMDBStreamGenerator implements SourceFunction<Tuple3<Long, Integer, Double[]>>, CheckpointedFunction {
 
     protected Integer id = 0;
     protected Long timestamp = 0L;
-    protected Tuple3<Long, Integer, String> tuple3;
+    protected Tuple3<Long, Integer, Double[]> tuple3;
     protected final int rate;
     protected final Long tmsp;
     protected int tRate;
     protected int delay;
     protected volatile boolean isRunning = true;
-    protected transient ListState<Tuple3<Long, Integer, String>> checkpointedTuples;
+    protected transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
     protected int sleepInterval;
     protected String datasetFile;
     protected MinioConfiguration minio;
@@ -53,7 +55,7 @@ public class IMDBStreamGenerator implements SourceFunction<Tuple3<Long, Integer,
     public void initializeState(FunctionInitializationContext context) throws Exception {
         this.checkpointedTuples = context
                 .getOperatorStateStore()
-                .getListState(new ListStateDescriptor<>("tuples", TypeInformation.of(new TypeHint<Tuple3<Long, Integer, String>>() {})));
+                .getListState(new ListStateDescriptor<>("tuples", TypeInformation.of(new TypeHint<Tuple3<Long, Integer, Double[]>>() {})));
 
     }
 
@@ -70,7 +72,7 @@ public class IMDBStreamGenerator implements SourceFunction<Tuple3<Long, Integer,
     }
 
     @Override
-    public void run(SourceContext<Tuple3<Long, Integer, String>> ctx) throws Exception {
+    public void run(SourceContext<Tuple3<Long, Integer, Double[]>> ctx) throws Exception {
 
         MinioClient minioClient =
                 MinioClient.builder()
@@ -91,15 +93,18 @@ public class IMDBStreamGenerator implements SourceFunction<Tuple3<Long, Integer,
                 // internal state updates and emission of elements are an atomic operation
                 synchronized (ctx.getCheckpointLock()) {
                     if(tRate > 0) {
-                        String title = br.readLine();
-                        if (title != null){
-                            ctx.collect(new Tuple3<>(timestamp, id, title));
-                            id++;
-                            tRate--;
+                        String[] titleEmbeddingStr = br
+                                .readLine()
+                                .replaceAll("[\\[\\]]", "")
+                                .split(", ");
+
+                        Double[] titleEmbedding = new Double[300];
+                        for(int i=0; i<titleEmbeddingStr.length; i++){
+                            titleEmbedding[i] = Double.parseDouble(titleEmbeddingStr[i]);
                         }
-                        else{
-                            break;
-                        }
+                        ctx.collect(new Tuple3<>(timestamp, id, titleEmbedding));
+                        id++;
+                        tRate--;
 
                     }
                     else{

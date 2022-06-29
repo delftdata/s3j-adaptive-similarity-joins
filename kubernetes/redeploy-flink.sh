@@ -27,6 +27,7 @@ $FLINK_HOME/bin/kubernetes-session.sh \
     -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.15-SNAPSHOT-DELTA.jar \
     -Dkubernetes.rest-service.exposed.type="LoadBalancer" \
     -Dstate.backend.incremental=true
+
 kubectl patch deployment my-first-flink-cluster --type json -p '[{"op": "add", "path": "/spec/template/spec/containers/0/envFrom", "value": [{"configMapRef": {"name": "env-config"}}] }]'
 
 while [[ "$(kubectl get svc my-first-flink-cluster-rest --no-headers | awk '{if ($4=="<pending>" || $4=="<none>") print $4; else print "";}')" ]]; do

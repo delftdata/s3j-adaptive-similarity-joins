@@ -41,12 +41,12 @@ do
   python /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-experiment-results/draw.py -n "$name"
   printf '\nPlots are ready...\n'
 
-  printf '\nReset experimental environment\n'
-  curl http://coordinator:5000/reset_environment
-  printf "\n\n"
-  printf 'Reset kafka topics...\n'
-  ./reset_kafka_topics.sh < /dev/null
-  printf '\nEverything is reset!\n\n'
+#  printf '\nReset experimental environment\n'
+#  curl http://coordinator:5000/reset_environment
+#  printf "\n\n"
+#  printf 'Reset kafka topics...\n'
+#  ./reset_kafka_topics.sh < /dev/null
+#  printf '\nEverything is reset!\n\n'
 
 done < "$input"
 

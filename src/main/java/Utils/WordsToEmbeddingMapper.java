@@ -27,7 +27,6 @@ public class WordsToEmbeddingMapper implements MapFunction<Tuple4<Long, Long, In
         String[] sentence = t.f3.split(" ");
         Set<String> keys = wordEmbeddings.keySet();
         int sum = 0;
-        System.out.println(Arrays.toString(sentence));
         try {
             for (String word : sentence) {
                 if (keys.contains(word)) {
