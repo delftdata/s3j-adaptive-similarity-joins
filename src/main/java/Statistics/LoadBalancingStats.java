@@ -79,51 +79,51 @@ public class LoadBalancingStats {
         check.addSink(myStatsProducer);
     }
 
-    public void prepareFinalComputationsPerGroup(SingleOutputStreamOperator<FinalOutput> mainStream) {
+//    public void prepareFinalComputationsPerGroup(SingleOutputStreamOperator<FinalOutput> mainStream) {
+//
+//        FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> groupLevelFinalComputationsProducer =
+//                new FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(
+//                        statsKafkaTopic,
+//                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(jobUUID+"_final-comps-per-group", statsKafkaTopic),
+//                        properties,
+//                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
+//                );
+//
+//        SingleOutputStreamOperator<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> check =
+//                mainStream
+//                        .map(t -> new GroupLevelShortOutput(t.f3, t.f1.f10, t.f1.f2, t.f1.f0,   1L))
+//                        .returns(TypeInformation.of(GroupLevelShortOutput.class))
+//                        .keyBy(new GroupLevelStatsKeySelector())
+//                        .window(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
+//                        .reduce(new GroupLevelFinalComputationsReduce(), new GroupLevelFinalComputationsStatsProcess())
+//                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
+//                        .process(new GroupLevelCombineProcessFunction());
+//
+//        check.addSink(groupLevelFinalComputationsProducer);
+//    }
 
-        FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> groupLevelFinalComputationsProducer =
-                new FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(
-                        statsKafkaTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(jobUUID+"_final-comps-per-group", statsKafkaTopic),
-                        properties,
-                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
-                );
-
-        SingleOutputStreamOperator<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> check =
-                mainStream
-                        .map(t -> new GroupLevelShortOutput(t.f3, t.f1.f10, t.f1.f2, t.f1.f0, 1L))
-                        .returns(TypeInformation.of(GroupLevelShortOutput.class))
-                        .keyBy(new GroupLevelStatsKeySelector())
-                        .window(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
-                        .reduce(new GroupLevelFinalComputationsReduce(), new GroupLevelFinalComputationsStatsProcess())
-                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
-                        .process(new GroupLevelCombineProcessFunction());
-
-        check.addSink(groupLevelFinalComputationsProducer);
-    }
-
-    public void prepareSizePerGroup(SingleOutputStreamOperator<FinalTuple> mainStream) {
-
-        FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> groupSizeProducer =
-                new FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(
-                        statsKafkaTopic,
-                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(jobUUID+"_size-per-group", statsKafkaTopic),
-                        properties,
-                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
-                );
-
-        SingleOutputStreamOperator<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> check =
-                mainStream
-                        .map(t -> new GroupLevelShortOutput(t.f7, t.f10, t.f2, t.f0, Long.valueOf(t.size())))
-                        .returns(TypeInformation.of(GroupLevelShortOutput.class))
-                        .keyBy(new GroupLevelStatsKeySelector())
-                        .window(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
-                        .reduce(new GroupLevelFinalComputationsReduce(), new GroupLevelFinalComputationsStatsProcess())
-                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
-                        .process(new GroupLevelCombineProcessFunction());
-
-        check.addSink(groupSizeProducer);
-    }
+//    public void prepareSizePerGroup(SingleOutputStreamOperator<FinalTuple> mainStream) {
+//
+//        FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> groupSizeProducer =
+//                new FlinkKafkaProducer<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(
+//                        statsKafkaTopic,
+//                        new ObjectSerializationSchema<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>>(jobUUID+"_size-per-group", statsKafkaTopic),
+//                        properties,
+//                        FlinkKafkaProducer.Semantic.EXACTLY_ONCE
+//                );
+//
+//        SingleOutputStreamOperator<Tuple2<Long, List<Tuple4<Integer, Integer, Integer, Long>>>> check =
+//                mainStream
+//                        .map(t -> new GroupLevelShortOutput(t.f7, t.f10, t.f2, t.f0, Long.valueOf(t.size())))
+//                        .returns(TypeInformation.of(GroupLevelShortOutput.class))
+//                        .keyBy(new GroupLevelStatsKeySelector())
+//                        .window(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
+//                        .reduce(new GroupLevelFinalComputationsReduce(), new GroupLevelFinalComputationsStatsProcess())
+//                        .windowAll(TumblingProcessingTimeWindows.of(Time.seconds(windowLength)))
+//                        .process(new GroupLevelCombineProcessFunction());
+//
+//        check.addSink(groupSizeProducer);
+//    }
 
     public void prepareLatencyPerMachine(SingleOutputStreamOperator<FinalOutput> mainStream) {
 

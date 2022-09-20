@@ -145,7 +145,7 @@ public class onlinePartitioningForSsj {
                 new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<GroupLevelShortOutput>() {}), env.getConfig()),
                 properties
         );
-        lpData.map(t -> new GroupLevelShortOutput(t.f7, t.f10, t.f2, t.f0, Long.valueOf(t.size()))).addSink(mySideOutputProducer);
+        lpData.map(t -> new GroupLevelShortOutput(t.f7, t.f10, t.f2, t.f0, t.f1, Long.valueOf(t.size()))).addSink(mySideOutputProducer);
 
         similarityOperator.setSideJoins(sideJoins);
         final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats = new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};

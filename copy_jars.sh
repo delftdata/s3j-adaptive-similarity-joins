@@ -6,4 +6,4 @@ cp target/online_partitioning_for_ssj-1.0.jar /Users/gsiachamis/Dropbox/"My Mac 
 cp src/main/java/StreamGeneratorComponent/target/StreamGenerator-1.0.jar /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-jars/StreamGenerator-1.0.jar
 cp src/main/java/StreamGeneratorComponent/target/StreamGenerator-1.0.jar /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/SSJ-Coordinator/jars/StreamGenerator-1.0.jar
 
-docker build -t gsiachamis/ssj-coordinator:parts-1.0 /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/SSJ-Coordinator/.
+docker build -t gsiachamis/ssj-coordinator:parts-1.2 /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/SSJ-Coordinator/.

@@ -11,7 +11,8 @@ spec:
     spec:
       containers:
       - name: monitor
-        image: gsiachamis/ssj-monitoring
+        image: gsiachamis/ssj-monitoring:1.0
+        imagePullPolicy: Always
         envFrom:
         - configMapRef:
             name: env-config

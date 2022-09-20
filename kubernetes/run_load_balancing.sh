@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 kafka_bootstrap=$(kubectl get svc kafka-cluster-kafka-extern-bootstrap -n kafka --no-headers | awk '{print $4}')
-input="$PWD/experiments.txt"
+input="$PWD/experiments_lb.txt"
 metrics=Flat_Map.numRecordsInPerSecond,Flat_Map.numRecordsOutPerSecond,Sink__Unnamed.KafkaProducer.record-send-rate
 
 while IFS= read -r line
@@ -11,6 +11,7 @@ do
   name="${ss[0]}"
   ssj_args="${ss[1]}"
   generator_args="${ss[2]}"
+  generator_args_2="${ss[3]}"
 
   printf 'Setup experimental environment\n'
   curl http://coordinator:5000/setup
@@ -23,6 +24,22 @@ do
   printf '\nStarting generator...\n'
   curl -X POST -H "Content-Type: application/json" \
       -d "{\"args\": $generator_args}" \
+      http://coordinator:5000/start_generator
+
+  while true
+  do
+    sleep 10
+    tmp="$(curl --silent http://coordinator:5000/jobs | grep -c 'RUNNING')"
+    if (( tmp < 2 ))
+    then
+      printf '\nFirst generator finished\n'
+      break
+    fi
+  done
+
+  printf '\nStarting 2nd generator...\n'
+  curl -X POST -H "Content-Type: application/json" \
+      -d "{\"args\": $generator_args_2}" \
       http://coordinator:5000/start_generator
 
   printf '\nStarting flink metrics monitoring...\n'
@@ -41,12 +58,12 @@ do
   python /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-experiment-results/draw.py -n "$name"
   printf '\nPlots are ready...\n'
 
-  printf '\nReset experimental environment\n'
-  curl http://coordinator:5000/reset_environment
-  printf "\n\n"
-  printf 'Reset kafka topics...\n'
-  ./reset_kafka_topics.sh < /dev/null
-  printf '\nEverything is reset!\n\n'
+#  printf '\nReset experimental environment\n'
+#  curl http://coordinator:5000/reset_environment
+#  printf "\n\n"
+#  printf 'Reset kafka topics...\n'
+#  ./reset_kafka_topics.sh < /dev/null
+#  printf '\nEverything is reset!\n\n'
 
 done < "$input"
 
