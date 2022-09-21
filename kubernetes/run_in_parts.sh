@@ -26,19 +26,19 @@ do
       http://coordinator:5000/start_generator
 
   printf '\nStarting flink metrics monitoring...\n'
-  python /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-experiment-results/get_flink_metrics.py -en "$name" -om $metrics
+  python ~/ssj-experiment-results/get_flink_metrics.py -en "$name" -om $metrics
   printf 'Experiment finished... \n'
 
   printf '\nCalculating stats...\n'
   curl http://coordinator:5000/start_stats?parallelism=1
   sleep 20
-  python /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-experiment-results/monitor_stats.py
+  python ~/ssj-experiment-results/monitor_stats.py
   printf '\nStats calculated\n'
 
   printf '\nCreating result plots...\n'
   offset="$(kubectl exec -i kafka-cluster-zookeeper-0 -n kafka -- ./bin/kafka-get-offsets.sh --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --topic pipeline-out-stats < /dev/null | awk -F':' '{print $3}')"
-  python /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-experiment-results/main.py -k "$kafka_bootstrap"":9094" -e "$offset" -n "$name"
-  python /Users/gsiachamis/Dropbox/"My Mac (Georgios’s MacBook Pro)"/Documents/GitHub/ssj-experiment-results/draw.py -n "$name"
+  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":9094" -e "$offset" -n "$name"
+  python ~/ssj-experiment-results/draw.py -n "$name"
   printf '\nPlots are ready...\n'
 
   printf '\nReset experimental environment\n'
