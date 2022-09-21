@@ -1,8 +1,7 @@
 # https://docs.bitnami.com/kubernetes/infrastructure/minio/configuration/
-accessKey:
-  password: minio
-secretKey:
-  password: minio123
+auth:
+  rootUser: minio
+  rootPassword: minio123
 mode: distributed
 persistence:
   size: 30Gi
