@@ -624,10 +624,9 @@ public class SimilarityJoinsUtil {
 //    }
 
     public static void main(String[] args) throws Exception{
-        createEmbeddingsFiles(
-                "/Users/gsiachamis/PycharmProjects/clustering_embeddings/wiki-news-300d-1M.vec",
-                "/Users/gsiachamis/Dropbox/My Mac (Georgios’s MacBook Pro)/Documents/PhD/Datasets/SSJ/IMDB-movies/title.basics.tsv"
-        );
+        for(int i =0 ; i<10; i++ ){
+             System.out.println((i * 128 + 10 - 1) / 10);
+        }
     }
 
 

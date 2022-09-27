@@ -177,5 +177,3 @@ public class onlinePartitioningForSsj {
     }
 }
 
-
-// TODO: Add a choice of distance functions.

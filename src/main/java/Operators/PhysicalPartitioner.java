@@ -63,7 +63,8 @@ public class PhysicalPartitioner implements FlatMapFunction<InputTuple, SPTuple>
     }
 
     int computePartitionID(int groupID){
-        return groupID*keyRange;
+        int parallelism = partCentroids.keySet().size();
+        return ((groupID * 128 + parallelism - 1) / parallelism);
     }
 }
 
