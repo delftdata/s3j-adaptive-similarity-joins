@@ -11,12 +11,17 @@ import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
 import Utils.*;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.*;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.windowing.assigners.GlobalWindows;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 import java.nio.file.Paths;
@@ -62,9 +67,22 @@ public class PipelineToTest {
                 .connect(ppData2.keyBy(t -> t.f0))
                 .process(new AdaptiveCoPartitioner(adaptivePartitionerCompanion));
 
+
+        DataStream<Integer> controlStream = env.addSource(new WindowController(30, true));
+
+        MapStateDescriptor<Void, Integer> controlStateDescriptor = new MapStateDescriptor<Void, Integer>(
+                "ControlBroadcastState",
+                BasicTypeInfo.VOID_TYPE_INFO,
+                BasicTypeInfo.INT_TYPE_INFO) ;
+
+// broadcast the rules and create the broadcast state
+        BroadcastStream<Integer> controlBroadcastStream = controlStream
+                .broadcast(controlStateDescriptor);
+
         partitionedData
                 .keyBy(new LogicalKeySelector())
-                .flatMap(new SimilarityJoin(dist_threshold))
+                .connect(controlBroadcastStream)
+                .process(new SimilarityJoin(dist_threshold))
                 .process(new CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());

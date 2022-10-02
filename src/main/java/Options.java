@@ -27,6 +27,9 @@ public class Options {
     @Option(name="-parallelism", usage="Define the desired level of parallelism. DEFAULT: 10")
     private int parallelism = 10;
 
+    @Option(name="-processingWindow", usage = "Define the length of the processing window in seconds.")
+    private int processingWindow = 60;
+
     // Getters, setters, etc
     public boolean hasSecondStream() { return twoStreams; }
 
@@ -44,5 +47,9 @@ public class Options {
 
     public int getParallelism() {
         return parallelism;
+    }
+
+    public int getProcessingWindow() {
+        return processingWindow;
     }
 }

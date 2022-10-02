@@ -32,10 +32,6 @@
 <!--                <enabled>true</enabled>-->
 <!--            </snapshots>-->
 <!--        </repository>-->
-        <repository>
-            <id>libs</id>
-            <url>file://${project.basedir}/libs</url>
-        </repository>
 
     </repositories>
 

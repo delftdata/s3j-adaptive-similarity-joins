@@ -9,6 +9,10 @@ import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
+import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -17,6 +21,7 @@ import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.BroadcastStream;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -148,12 +153,25 @@ public class onlinePartitioningForSsj {
         lpData.map(t -> new GroupLevelShortOutput(t.f7, t.f10, t.f2, t.f0, t.f1, Long.valueOf(t.size()))).addSink(mySideOutputProducer);
 
         similarityOperator.setSideJoins(sideJoins);
+
+        DataStream<Integer> controlStream = env.addSource(new WindowController(options.getProcessingWindow()));
+
+
+        MapStateDescriptor<Void, Integer> controlStateDescriptor = new MapStateDescriptor<Void, Integer>(
+                "ControlBroadcastState",
+                BasicTypeInfo.VOID_TYPE_INFO,
+                BasicTypeInfo.INT_TYPE_INFO);
+
+// broadcast the rules and create the broadcast state
+        BroadcastStream<Integer> controlBroadcastStream = controlStream
+                .broadcast(controlStateDescriptor);
+
         final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats = new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
         SingleOutputStreamOperator<FinalOutput>
                 unfilteredJoinedStream = lpData
                 .keyBy(new LogicalKeySelector())
-                .flatMap(similarityOperator).uid("similarityJoin");
-
+                .connect(controlBroadcastStream)
+                .process(similarityOperator).uid("similarityJoin");
 
         String outputTopic = "pipeline-out";
         FlinkKafkaProducer<ShortFinalOutput> myOutputProducer = new FlinkKafkaProducer<>(
@@ -161,10 +179,6 @@ public class onlinePartitioningForSsj {
                 new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<ShortFinalOutput>() {}), env.getConfig()),
                 properties
         );
-
-        String outputStatsTopic = "pipeline-out-stats";
-        String allLatenciesTopic = "all-latencies";
-
 
         unfilteredJoinedStream.map(new ShortFinalOutputMapper()).addSink(myOutputProducer);
 
