@@ -30,6 +30,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
     private double dist_thresh;
     private int keyRange;
     private ListState<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> phyOuters;
+    private ListStateDescriptor<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> phyOutersDesc;
     private MapState<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> mappingGroupsToNodes;
     private OutputTag<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids;
     private OutputTag<Tuple3<Long, Integer, Integer>> sideLPartitions;
@@ -49,6 +50,10 @@ public class AdaptivePartitionerCompanion implements Serializable {
 
     public ListState<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> getPhyOuters() {
         return phyOuters;
+    }
+
+    public ListStateDescriptor<Tuple8<Integer, String, Integer, Long, Long, Integer, Double[], String>> getPhyOutersDesc() {
+        return phyOutersDesc;
     }
 
     public MapState<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> getMappingGroupsToNodes() {
@@ -78,7 +83,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
     }
 
     void open(Configuration config, AbstractRichFunction adaptivePartitioner){
-        ListStateDescriptor<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> phyOutersDesc =
+        phyOutersDesc =
                 new ListStateDescriptor<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>>(
                         "phyOuters",
                         TypeInformation.of(new TypeHint<Tuple8<Integer, String, Integer, Long, Long, Integer, Double[], String>>() {})

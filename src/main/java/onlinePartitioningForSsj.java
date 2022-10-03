@@ -1,10 +1,8 @@
 import CustomDataTypes.*;
+import Operators.*;
 import Operators.AdaptivePartitioner.AdaptiveCoPartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
-import Operators.PhysicalPartitioner;
-import Operators.SimilarityJoin;
-import Operators.SimilarityJoinSelf;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
@@ -87,6 +85,20 @@ public class onlinePartitioningForSsj {
 
         // ========================================================================================================== //
 
+
+        //Create the broadcasted control stream.
+        DataStream<Integer> controlStream = env.addSource(new WindowController(options.getProcessingWindow()));
+
+
+        MapStateDescriptor<Void, Integer> controlStateDescriptor = new MapStateDescriptor<Void, Integer>(
+                "ControlBroadcastState",
+                BasicTypeInfo.VOID_TYPE_INFO,
+                BasicTypeInfo.INT_TYPE_INFO);
+
+        // broadcast the rules and create the broadcast state
+        BroadcastStream<Integer> controlBroadcastStream = controlStream
+                .broadcast(controlStateDescriptor);
+
         // Create the input stream from the source. Set the properties for the centroids.
         int centroidsDim = options.getCentroidsDim();
         int centroidsNum = options.getParallelism();
@@ -129,7 +141,10 @@ public class onlinePartitioningForSsj {
 
             lpData = keyedData
                     .connect(ppData2.keyBy(t -> t.f0))
-                    .process(new AdaptiveCoPartitioner(adaptivePartitionerCompanion)).uid("adaptivePartitioner");
+                    .process(new PassthroughCoProcess())
+                    .keyBy(t -> t.f0)
+                    .connect(controlBroadcastStream)
+                    .process(new AdaptivePartitioner(adaptivePartitionerCompanion)).uid("adaptivePartitioner");
 
             similarityOperator = new SimilarityJoin(dist_threshold);
         } else {
@@ -139,6 +154,9 @@ public class onlinePartitioningForSsj {
             // Inside each machine tuples are grouped in threshold-based groups.
             // Again the grouping is happening by augmenting tuples with key attributes.
             lpData = keyedData
+                    .process(new PassthroughProcess())
+                    .keyBy(t -> t.f0)
+                    .connect(controlBroadcastStream)
                     .process(new AdaptivePartitioner(adaptivePartitionerCompanion)).uid("adaptivePartitioner");
 
             similarityOperator = new SimilarityJoinSelf(dist_threshold);
@@ -153,18 +171,6 @@ public class onlinePartitioningForSsj {
         lpData.map(t -> new GroupLevelShortOutput(t.f7, t.f10, t.f2, t.f0, t.f1, Long.valueOf(t.size()))).addSink(mySideOutputProducer);
 
         similarityOperator.setSideJoins(sideJoins);
-
-        DataStream<Integer> controlStream = env.addSource(new WindowController(options.getProcessingWindow()));
-
-
-        MapStateDescriptor<Void, Integer> controlStateDescriptor = new MapStateDescriptor<Void, Integer>(
-                "ControlBroadcastState",
-                BasicTypeInfo.VOID_TYPE_INFO,
-                BasicTypeInfo.INT_TYPE_INFO);
-
-// broadcast the rules and create the broadcast state
-        BroadcastStream<Integer> controlBroadcastStream = controlStream
-                .broadcast(controlStateDescriptor);
 
         final OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>> sideStats = new OutputTag<Tuple4<Long, Boolean, FinalTuple, FinalTuple>>("stats"){};
         SingleOutputStreamOperator<FinalOutput>

@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 
-public class CleanAllState implements KeyedStateFunction<Tuple3<Integer, Integer, Integer>, MapState<String, HashMap<String, List<FinalTuple>>>>, Serializable {
+public class CleanAllJoinState implements KeyedStateFunction<Tuple3<Integer, Integer, Integer>, MapState<String, HashMap<String, List<FinalTuple>>>>, Serializable {
 
     @Override
     public void process(Tuple3<Integer, Integer, Integer> worksetKey, MapState<String, HashMap<String, List<FinalTuple>>> joinMapState) throws Exception {

@@ -6,6 +6,7 @@ import CustomDataTypes.InputTuple;
 import CustomDataTypes.SPTuple;
 import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
+import Operators.PassthroughProcess;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
 import Operators.SimilarityJoinSelf;
@@ -52,16 +53,6 @@ public class PipelineToTest {
         DataStream<InputTuple> data = streamFactory.create2DArrayStream(inputFileName);
         double dist_threshold = 0.05;
 
-        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(dist_threshold, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
-
-//        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
-        AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
-
-        DataStream<FinalTuple> partitionedData = ppData
-                .keyBy(t-> t.f0)
-                .process(new AdaptivePartitioner(adaptivePartitionerCompanion));
-
-
         DataStream<Integer> controlStream = env.addSource(new WindowController(30, true));
 
         MapStateDescriptor<Void, Integer> controlStateDescriptor = new MapStateDescriptor<Void, Integer>(
@@ -72,6 +63,18 @@ public class PipelineToTest {
 // broadcast the rules and create the broadcast state
         BroadcastStream<Integer> controlBroadcastStream = controlStream
                 .broadcast(controlStateDescriptor);
+
+        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(dist_threshold, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
+
+//        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
+        AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
+
+        DataStream<FinalTuple> partitionedData = ppData
+                .keyBy(t-> t.f0)
+                .process(new PassthroughProcess())
+                .keyBy(t -> t.f0)
+                .connect(controlBroadcastStream)
+                .process(new AdaptivePartitioner(adaptivePartitionerCompanion));
 
         partitionedData
                 .keyBy(new LogicalKeySelector())

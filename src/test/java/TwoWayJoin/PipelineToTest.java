@@ -7,6 +7,7 @@ import CustomDataTypes.SPTuple;
 import Operators.AdaptivePartitioner.AdaptiveCoPartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
+import Operators.PassthroughCoProcess;
 import Operators.PhysicalPartitioner;
 import Operators.SimilarityJoin;
 import Utils.*;
@@ -54,6 +55,17 @@ public class PipelineToTest {
         DataStream<InputTuple> dataStream2 = streamFactory.create2DArrayStream(stream2);
         double dist_threshold = 0.1;
 
+        DataStream<Integer> controlStream = env.addSource(new WindowController(30, true));
+
+        MapStateDescriptor<Void, Integer> controlStateDescriptor = new MapStateDescriptor<Void, Integer>(
+                "ControlBroadcastState",
+                BasicTypeInfo.VOID_TYPE_INFO,
+                BasicTypeInfo.INT_TYPE_INFO) ;
+
+// broadcast the rules and create the broadcast state
+        BroadcastStream<Integer> controlBroadcastStream = controlStream
+                .broadcast(controlStateDescriptor);
+
         HashMap<Integer, Double[]> centroids = SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2);
 
         DataStream<SPTuple> ppData1 = dataStream1.flatMap(new PhysicalPartitioner(dist_threshold, centroids,(env.getMaxParallelism()/env.getParallelism())+1));
@@ -65,19 +77,10 @@ public class PipelineToTest {
         DataStream<FinalTuple> partitionedData = ppData1
                 .keyBy(t-> t.f0)
                 .connect(ppData2.keyBy(t -> t.f0))
-                .process(new AdaptiveCoPartitioner(adaptivePartitionerCompanion));
-
-
-        DataStream<Integer> controlStream = env.addSource(new WindowController(30, true));
-
-        MapStateDescriptor<Void, Integer> controlStateDescriptor = new MapStateDescriptor<Void, Integer>(
-                "ControlBroadcastState",
-                BasicTypeInfo.VOID_TYPE_INFO,
-                BasicTypeInfo.INT_TYPE_INFO) ;
-
-// broadcast the rules and create the broadcast state
-        BroadcastStream<Integer> controlBroadcastStream = controlStream
-                .broadcast(controlStateDescriptor);
+                .process(new PassthroughCoProcess())
+                .keyBy(t -> t.f0)
+                .connect(controlBroadcastStream)
+                .process(new AdaptivePartitioner(adaptivePartitionerCompanion));
 
         partitionedData
                 .keyBy(new LogicalKeySelector())

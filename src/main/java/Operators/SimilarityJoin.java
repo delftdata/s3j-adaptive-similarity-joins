@@ -2,7 +2,7 @@ package Operators;
 
 import CustomDataTypes.FinalOutput;
 import CustomDataTypes.FinalTuple;
-import Utils.CleanAllState;
+import Utils.CleanAllJoinState;
 import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -213,7 +213,7 @@ public class SimilarityJoin extends KeyedBroadcastProcessFunction<Tuple3<Integer
 
     @Override
     public void processBroadcastElement(Integer integer, Context context, Collector<FinalOutput> collector) throws Exception {
-        context.applyToKeyedState(this.joinStateDesc, new CleanAllState());
+        context.applyToKeyedState(this.joinStateDesc, new CleanAllJoinState());
     }
 
 

@@ -30,7 +30,7 @@ do
   printf 'Experiment finished... \n'
 
   printf '\nCalculating stats...\n'
-  curl http://coordinator:5000/start_stats?parallelism=1
+  curl http://coordinator:5000/start_stats?parallelism=5
   sleep 20
   python ~/ssj-experiment-results/monitor_stats.py
   printf '\nStats calculated\n'
