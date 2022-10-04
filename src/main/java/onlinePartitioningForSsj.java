@@ -1,6 +1,5 @@
 import CustomDataTypes.*;
 import Operators.*;
-import Operators.AdaptivePartitioner.AdaptiveCoPartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitioner;
 import Operators.AdaptivePartitioner.AdaptivePartitionerCompanion;
 import Utils.*;
@@ -8,8 +7,6 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.serialization.TypeInformationSerializationSchema;
 import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -86,6 +83,14 @@ public class onlinePartitioningForSsj {
         // ========================================================================================================== //
 
 
+        // Create KafkaProducer for input throughput measurement.
+        String throughputTopic = "pipeline-throughput";
+        FlinkKafkaProducer<Tuple2<Long, Long>> myThroughputProducer = new FlinkKafkaProducer<>(
+                throughputTopic,
+                new TypeInformationSerializationSchema<>(TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {}), env.getConfig()),
+                properties
+        );
+
         //Create the broadcasted control stream.
         DataStream<Integer> controlStream = env.addSource(new WindowController(options.getProcessingWindow()));
 
@@ -118,6 +123,8 @@ public class onlinePartitioningForSsj {
         DataStream<InputTuple> firstStream = env
                 .fromSource(leftKafkaStream, WatermarkStrategy.forMonotonousTimestamps(), "Kafka Left Stream")
                 .map(new IngestTimeMapper());
+        firstStream.map(t -> new Tuple2<Long, Long>(t.f1, 1L)).addSink(myThroughputProducer);
+
         DataStream<SPTuple> ppData1 = firstStream.
                 flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
 
@@ -135,6 +142,7 @@ public class onlinePartitioningForSsj {
             DataStream<InputTuple> secondStream = env
                     .fromSource(rightKafkaStream, WatermarkStrategy.forMonotonousTimestamps(), "Kafka Right Stream")
                     .map(new IngestTimeMapper());
+            secondStream.map(t -> new Tuple2<Long, Long>(t.f1, 1L)).addSink(myThroughputProducer);
 
             DataStream<SPTuple> ppData2 = secondStream.
                     flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("secondSpacePartitioner");
