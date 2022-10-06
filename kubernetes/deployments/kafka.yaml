@@ -98,3 +98,15 @@ spec:
   partitions: 5
   replicas: 1
 ---
+
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: pipeline-throughput
+  labels:
+    strimzi.io/cluster: kafka-cluster
+spec:
+  partitions: 5
+  replicas: 1
+
+---

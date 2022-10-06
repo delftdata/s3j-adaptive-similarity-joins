@@ -123,7 +123,7 @@ public class onlinePartitioningForSsj {
         DataStream<InputTuple> firstStream = env
                 .fromSource(leftKafkaStream, WatermarkStrategy.forMonotonousTimestamps(), "Kafka Left Stream")
                 .map(new IngestTimeMapper());
-        firstStream.map(t -> new Tuple2<Long, Long>(t.f1, 1L)).addSink(myThroughputProducer);
+        firstStream.map(t -> new Tuple2<Long, Long>(t.f1, 1L)).returns(TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {})).addSink(myThroughputProducer);
 
         DataStream<SPTuple> ppData1 = firstStream.
                 flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
@@ -142,7 +142,7 @@ public class onlinePartitioningForSsj {
             DataStream<InputTuple> secondStream = env
                     .fromSource(rightKafkaStream, WatermarkStrategy.forMonotonousTimestamps(), "Kafka Right Stream")
                     .map(new IngestTimeMapper());
-            secondStream.map(t -> new Tuple2<Long, Long>(t.f1, 1L)).addSink(myThroughputProducer);
+            secondStream.map(t -> new Tuple2<Long, Long>(t.f1, 1L)).returns(TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {})).addSink(myThroughputProducer);
 
             DataStream<SPTuple> ppData2 = secondStream.
                     flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("secondSpacePartitioner");
