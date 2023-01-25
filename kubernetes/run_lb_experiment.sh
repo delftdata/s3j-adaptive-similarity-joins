@@ -26,16 +26,21 @@ do
       -d "{\"args\": $generator_args}" \
       http://coordinator:5000/start_generator
 
-  while true
-  do
-    sleep 10
-    tmp="$(curl --silent http://coordinator:5000/jobs | grep -c 'RUNNING')"
-    if (( tmp < 2 ))
-    then
-      printf '\nFirst generator finished\n'
-      break
-    fi
-  done
+  printf '\nStarting flink metrics monitoring...\n'
+  python ~/ssj-experiment-results/get_flink_metrics.py -en "$name" -om $metrics
+  printf 'Experiment finished... \n'
+
+
+#  ./redeploy-monitor.sh < /dev/null
+  printf '\nCalculating stats...\n'
+  curl http://coordinator:5000/start_stats?parallelism=5
+  sleep 20
+  python ~/ssj-experiment-results/monitor_stats.py
+  printf '\nStats calculated\n'
+  stats_id="$(curl http://coordinator:5000/get_stats_jobid)"
+  curl -X PATCH http://flink-rest:8081/jobs/"$stats_id"
+  ./reset_kafka_topics.sh < /dev/null
+
 
   printf '\nStarting 2nd generator...\n'
   curl -X POST -H "Content-Type: application/json" \
@@ -51,6 +56,7 @@ do
   sleep 20
   python ~/ssj-experiment-results/monitor_stats.py
   printf '\nStats calculated\n'
+
 
   printf '\nCreating result plots...\n'
   offset="$(kubectl exec -i kafka-cluster-zookeeper-0 -n kafka -- ./bin/kafka-get-offsets.sh --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --topic pipeline-out-stats < /dev/null | awk -F':' '{print $3}')"

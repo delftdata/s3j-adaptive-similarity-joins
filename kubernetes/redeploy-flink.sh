@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-kubectl delete deploy my-first-flink-cluster
+kubectl delete deploy flink-cluster
 while [[ "$(kubectl get svc |(! grep "my-first-flink-cluster"))" ]]; do
         echo "Service still terminating... Waiting..."
         sleep 10
@@ -21,7 +21,7 @@ $FLINK_HOME/bin/kubernetes-session.sh \
     -Dtaskmanager.rpc.port=6122 \
     -Dtaskmanager.numberOfTaskSlots=1 \
     -Dkubernetes.taskmanager.cpu=2 \
-    -Dtaskmanager.memory.process.size=4000m \
+    -Dtaskmanager.memory.process.size=8000m \
     -Djobmanager.memory.process.size=8000m \
     -Dcontainerized.master.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.15-SNAPSHOT-DELTA.jar \
     -Dcontainerized.taskmanager.env.ENABLE_BUILT_IN_PLUGINS=flink-s3-fs-hadoop-1.15-SNAPSHOT-DELTA.jar \

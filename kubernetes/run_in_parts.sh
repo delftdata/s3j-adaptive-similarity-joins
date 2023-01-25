@@ -28,6 +28,7 @@ do
   printf '\nStarting flink metrics monitoring...\n'
   python ~/ssj-experiment-results/get_flink_metrics.py -en "$name" -om $metrics
   printf 'Experiment finished... \n'
+  curl http://coordinator:5000/cancel_join_job
 
   printf '\nCalculating stats...\n'
   curl http://coordinator:5000/start_stats?parallelism=5
