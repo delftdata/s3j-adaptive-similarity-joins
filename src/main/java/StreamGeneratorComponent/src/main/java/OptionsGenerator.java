@@ -1,3 +1,5 @@
+package StreamGeneratorComponent.src.main.java;
+
 import CustomDataTypes.MinioConfiguration;
 import org.kohsuke.args4j.Argument;
 import org.kohsuke.args4j.Option;

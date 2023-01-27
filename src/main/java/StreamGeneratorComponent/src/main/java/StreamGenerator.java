@@ -1,3 +1,5 @@
+package StreamGeneratorComponent.src.main.java;
+
 import CustomDataTypes.*;
 import Utils.*;
 import org.apache.flink.api.common.JobExecutionResult;
