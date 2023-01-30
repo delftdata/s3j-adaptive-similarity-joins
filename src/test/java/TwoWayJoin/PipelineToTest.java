@@ -45,6 +45,7 @@ public class PipelineToTest {
         StreamFactory streamFactory = new StreamFactory(env);
         env.setMaxParallelism(128);
         env.setParallelism(givenParallelism);
+        boolean blas = true;
 
         CollectSink.values.clear();
 
@@ -68,11 +69,11 @@ public class PipelineToTest {
 
         HashMap<Integer, Double[]> centroids = SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2);
 
-        DataStream<SPTuple> ppData1 = dataStream1.flatMap(new PhysicalPartitioner(dist_threshold, centroids,(env.getMaxParallelism()/env.getParallelism())+1));
-        DataStream<SPTuple> ppData2 = dataStream2.flatMap(new PhysicalPartitioner(dist_threshold, centroids,(env.getMaxParallelism()/env.getParallelism())+1));
+        DataStream<SPTuple> ppData1 = dataStream1.flatMap(new PhysicalPartitioner(dist_threshold, centroids,(env.getMaxParallelism()/env.getParallelism())+1, blas));
+        DataStream<SPTuple> ppData2 = dataStream2.flatMap(new PhysicalPartitioner(dist_threshold, centroids,(env.getMaxParallelism()/env.getParallelism())+1, blas));
 
 //        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
-        AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
+        AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1, blas);
 
         DataStream<FinalTuple> partitionedData = ppData1
                 .keyBy(t-> t.f0)
@@ -85,7 +86,7 @@ public class PipelineToTest {
         partitionedData
                 .keyBy(new LogicalKeySelector())
                 .connect(controlBroadcastStream)
-                .process(new SimilarityJoin(dist_threshold))
+                .process(new SimilarityJoin(dist_threshold, blas))
                 .process(new CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());

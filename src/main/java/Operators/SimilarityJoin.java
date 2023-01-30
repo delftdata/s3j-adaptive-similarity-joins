@@ -12,7 +12,6 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 
-import org.apache.flink.runtime.state.KeyedStateFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 
@@ -39,11 +38,13 @@ public class SimilarityJoin extends KeyedBroadcastProcessFunction<Tuple3<Integer
             BasicTypeInfo.INT_TYPE_INFO) {
     };
     private int counter;
+    private boolean blas;
 
-    public SimilarityJoin(Double dist_thresh) throws Exception{
+    public SimilarityJoin(Double dist_thresh, boolean blas) throws Exception{
         this.dist_thresh = dist_thresh;
         this.LOG = LoggerFactory.getLogger(this.getClass().getName());
         this.counter = 0;
+        this.blas = blas;
     }
 
     public void setSideJoins(OutputTag<Tuple3<Long, Integer, Integer>> sideJoins) {
@@ -123,7 +124,7 @@ public class SimilarityJoin extends KeyedBroadcastProcessFunction<Tuple3<Integer
 
                 Double[] tEmbed = t.f9;
                 if ((incoming.f8 > t.f8 && isSelfJoin()) || incoming.f11.equals("left")) {
-                    boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh;
+                    boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed, blas) < dist_thresh;
                     if (sim) {
                         collector.collect(
                                 new FinalOutput(
@@ -150,7 +151,7 @@ public class SimilarityJoin extends KeyedBroadcastProcessFunction<Tuple3<Integer
                     }
 
                 } else {
-                    boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh;
+                    boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed, blas) < dist_thresh;
                     if (sim) {
                         collector.collect(
                                 new FinalOutput(

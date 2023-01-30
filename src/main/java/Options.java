@@ -30,6 +30,9 @@ public class Options {
     @Option(name="-processingWindow", usage = "Define the length of the processing window in seconds.")
     private int processingWindow = 60;
 
+    @Option(name="-blas", usage="Flag for use of BLAS native libs.")
+    private boolean blas = true;
+
     // Getters, setters, etc
     public boolean hasSecondStream() { return twoStreams; }
 
@@ -52,4 +55,6 @@ public class Options {
     public int getProcessingWindow() {
         return processingWindow;
     }
+
+    public boolean getBlas(){return blas;}
 }
