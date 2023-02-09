@@ -4,6 +4,9 @@ import CustomDataTypes.InputTuple;
 import CustomDataTypes.SPTuple;
 import Utils.SimilarityJoinsUtil;
 import org.apache.flink.api.common.functions.FlatMapFunction;
+import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.apache.flink.api.java.tuple.Tuple6;
 import org.apache.flink.util.Collector;
 
 import java.util.HashMap;
@@ -16,13 +19,11 @@ public class PhysicalPartitioner implements FlatMapFunction<InputTuple, SPTuple>
     Double dist_thresh;
     HashMap<Integer, Double[]> partCentroids;
     int keyRange;
-    boolean blas;
 
-    public PhysicalPartitioner(Double dist_thresh, HashMap<Integer, Double[]> randomCentroids, int keyRange, boolean blas) throws Exception{
+    public PhysicalPartitioner(Double dist_thresh, HashMap<Integer, Double[]> randomCentroids, int keyRange) throws Exception{
         this.dist_thresh = dist_thresh;
         this.partCentroids = randomCentroids;
         this.keyRange = keyRange;
-        this.blas = blas;
     }
 
     @Override
@@ -40,7 +41,7 @@ public class PhysicalPartitioner implements FlatMapFunction<InputTuple, SPTuple>
         int min_idx = 0;
         double min_dist = 1000000000.0;
         for(Map.Entry<Integer, Double[]> centroid : partCentroids.entrySet()){
-            double temp = SimilarityJoinsUtil.AngularDistance(centroid.getValue(), t.f3, blas);
+            double temp = SimilarityJoinsUtil.AngularDistance(centroid.getValue(), t.f3);
             if (min_dist > temp){
                 min_idx = centroid.getKey();
                 min_dist = temp;

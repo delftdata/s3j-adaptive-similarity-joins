@@ -11,6 +11,8 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 
+import java.nio.channels.ConnectionPendingException;
+
 public class AdaptivePartitioner extends KeyedBroadcastProcessFunction<Integer, JointTuple, Integer, FinalTuple> {
     private AdaptivePartitionerCompanion companion;
 

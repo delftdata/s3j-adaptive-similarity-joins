@@ -44,8 +44,6 @@ public class PipelineToTest {
         StreamFactory streamFactory = new StreamFactory(env);
         env.setMaxParallelism(128);
         env.setParallelism(givenParallelism);
-        boolean blas = true;
-
 
         CollectSink.values.clear();
 
@@ -66,10 +64,10 @@ public class PipelineToTest {
         BroadcastStream<Integer> controlBroadcastStream = controlStream
                 .broadcast(controlStateDescriptor);
 
-        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(dist_threshold, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1, blas));
+        DataStream<SPTuple> ppData = data.flatMap(new PhysicalPartitioner(dist_threshold, SimilarityJoinsUtil.RandomCentroids(givenParallelism, 2),(env.getMaxParallelism()/env.getParallelism())+1));
 
 //        ppData.writeAsText(pwd+"/src/main/outputs/testfiles", FileSystem.WriteMode.OVERWRITE);
-        AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1, blas);
+        AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
 
         DataStream<FinalTuple> partitionedData = ppData
                 .keyBy(t-> t.f0)
@@ -81,7 +79,7 @@ public class PipelineToTest {
         partitionedData
                 .keyBy(new LogicalKeySelector())
                 .connect(controlBroadcastStream)
-                .process(new SimilarityJoinSelf(dist_threshold, blas))
+                .process(new SimilarityJoinSelf(dist_threshold))
                 .process(new CustomFiltering(sideStats))
                 .map(new Map2ID())
                 .addSink(new CollectSink());

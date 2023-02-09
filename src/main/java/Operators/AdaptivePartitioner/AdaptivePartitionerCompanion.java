@@ -35,7 +35,6 @@ public class AdaptivePartitionerCompanion implements Serializable {
     private OutputTag<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids;
     private OutputTag<Tuple3<Long, Integer, Integer>> sideLPartitions;
     private Logger LOG;
-    private boolean blas;
 
 
     public AdaptivePartitionerCompanion() {
@@ -77,11 +76,10 @@ public class AdaptivePartitionerCompanion implements Serializable {
         this.sideLPartitions = sideLPartitions;
     }
 
-    public AdaptivePartitionerCompanion(double dist_thresh, int keyRange, boolean blas) {
+    public AdaptivePartitionerCompanion(double dist_thresh, int keyRange) {
         this.dist_thresh = dist_thresh;
         this.keyRange = keyRange;
         this.LOG = LoggerFactory.getLogger(this.getClass().getName());
-        this.blas = blas;
     }
 
     void open(Configuration config, AbstractRichFunction adaptivePartitioner){
@@ -123,7 +121,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
 
         if (t.f1.equals("pOuter")) {
             for (Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> centroid : mappingGroupsToNodes.entries()) {
-                Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2, blas);
+                Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2);
                 distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                 if (dist <= 2 * dist_thresh) {
@@ -139,7 +137,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
                 LOG.warn(new FinalTuple(1, "inner", t.f0, t.f1, t.f2, 1, t.f3, t.f4, t.f5, t.f6, mappingGroupsToNodes.get(1).f1, origin).toString());
                 for (Tuple8<Integer, String, Integer, Long, Long, Integer, Double[], String> po : phyOuters.get()) {
                     Double[] temp = po.f6;
-                    if (SimilarityJoinsUtil.AngularDistance(emb, temp, blas) <= 2 * dist_thresh) {
+                    if (SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh) {
                         collector.collect(new FinalTuple(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(1).f1, po.f7));
 //                        LOG.warn(new FinalTuple(1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(1).f1, po.f7).toString());
                     }
@@ -147,7 +145,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
             } else {
                 int inner;
                 for (Map.Entry<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> centroid : mappingGroupsToNodes.entries()) {
-                    Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2, blas);
+                    Double dist = SimilarityJoinsUtil.AngularDistance(emb, centroid.getValue().f0.f2);
                     distances.add(new Tuple2<>(centroid.getKey(), dist));
 
                     if (dist <= 0.5 * dist_thresh) {
@@ -166,7 +164,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
                         for (Tuple8<Integer, String, Integer, Long, Long, Integer, Double[], String> po : phyOuters.get()) {
                             Double[] temp = po.f6;
 
-                            if (SimilarityJoinsUtil.AngularDistance(emb, temp, blas) <= 2 * dist_thresh) {
+                            if (SimilarityJoinsUtil.AngularDistance(emb, temp) <= 2 * dist_thresh) {
                                 collector.collect(new FinalTuple(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(part_num + 1).f1, po.f7));
 //                                LOG.warn(new FinalTuple(part_num + 1, "outer", po.f0, po.f1, po.f2, -1, po.f3, po.f4, po.f5, po.f6, mappingGroupsToNodes.get(part_num+1).f1, po.f7).toString());
                             }

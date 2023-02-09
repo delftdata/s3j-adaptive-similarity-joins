@@ -65,7 +65,6 @@ public class onlinePartitioningForSsj {
         env.setMaxParallelism(128);
         env.setParallelism(options.getParallelism());
         double dist_threshold = 1.0 - options.getThreshold();
-        boolean blas = options.getBlas();
 
         LOG.info("Enter main.");
         // ========================================================================================================== //
@@ -127,9 +126,9 @@ public class onlinePartitioningForSsj {
         firstStream.map(t -> new Tuple2<Long, Long>(t.f1, 1L)).returns(TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {})).addSink(myThroughputProducer);
 
         DataStream<SPTuple> ppData1 = firstStream.
-                flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1, blas)).uid("firstSpacePartitioner");
+                flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("firstSpacePartitioner");
 
-        AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1, blas);
+        AdaptivePartitionerCompanion adaptivePartitionerCompanion = new AdaptivePartitionerCompanion(dist_threshold, (env.getMaxParallelism()/env.getParallelism())+1);
         adaptivePartitionerCompanion.setSideLPartitions(sideLP);
         adaptivePartitionerCompanion.setSideLCentroids(sideLCentroids);
 
@@ -146,7 +145,7 @@ public class onlinePartitioningForSsj {
             secondStream.map(t -> new Tuple2<Long, Long>(t.f1, 1L)).returns(TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {})).addSink(myThroughputProducer);
 
             DataStream<SPTuple> ppData2 = secondStream.
-                    flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1, blas)).uid("secondSpacePartitioner");
+                    flatMap(new PhysicalPartitioner(dist_threshold, centroids, (env.getMaxParallelism()/env.getParallelism())+1)).uid("secondSpacePartitioner");
 
             lpData = keyedData
                     .connect(ppData2.keyBy(t -> t.f0))
@@ -155,7 +154,7 @@ public class onlinePartitioningForSsj {
                     .connect(controlBroadcastStream)
                     .process(new AdaptivePartitioner(adaptivePartitionerCompanion)).uid("adaptivePartitioner");
 
-            similarityOperator = new SimilarityJoin(dist_threshold, blas);
+            similarityOperator = new SimilarityJoin(dist_threshold);
         } else {
             // Write the input stream in a txt file for debugging reasons. Not part of the final pipeline.
 
@@ -168,7 +167,7 @@ public class onlinePartitioningForSsj {
                     .connect(controlBroadcastStream)
                     .process(new AdaptivePartitioner(adaptivePartitionerCompanion)).uid("adaptivePartitioner");
 
-            similarityOperator = new SimilarityJoinSelf(dist_threshold, blas);
+            similarityOperator = new SimilarityJoinSelf(dist_threshold);
         }
 
         String sideOutputTopic = "pipeline-side-out";

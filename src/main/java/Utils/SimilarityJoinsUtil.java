@@ -1,25 +1,30 @@
 package Utils;
 
+import CustomDataTypes.InputTuple;
 import CustomDataTypes.MinioConfiguration;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.minio.GetObjectArgs;
 import io.minio.MinioClient;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.math3.distribution.ParetoDistribution;
 import org.apache.commons.math3.distribution.ZipfDistribution;
+import org.apache.commons.math3.ml.distance.EuclideanDistance;
 import org.apache.commons.math3.random.Well19937c;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.ml.linalg.BLAS;
-import org.apache.flink.ml.linalg.DenseVector;
-import org.apache.flink.ml.linalg.VectorWithNorm;
-import org.apache.flink.ml.linalg.Vectors;
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Function;
@@ -70,15 +75,9 @@ public class SimilarityJoinsUtil {
         return centroids;
     }
 
-    public static Double AngularDistance(Double[] vectorA, Double[] vectorB, boolean blas){
+    public static Double AngularDistance(Double[] vectorA, Double[] vectorB){
         double p = Math.PI;
-        Double cos_sim;
-        if(blas){
-            cos_sim = CosineSimilarityWithBlas(vectorA, vectorB);
-        }
-        else{
-            cos_sim = CosineSimilarity(vectorA, vectorB);
-        }
+        Double cos_sim = CosineSimilarity(vectorA, vectorB);
         return Math.acos(cos_sim)/p;
     }
 
@@ -102,14 +101,6 @@ public class SimilarityJoinsUtil {
         return Math.min(csim, 1.0);
     }
 
-    public static Double CosineSimilarityWithBlas(Double[] vectorA, Double[] vectorB){
-        VectorWithNorm vecA = new VectorWithNorm(arrayDoubleToVector(vectorA));
-        VectorWithNorm vecB = new VectorWithNorm(arrayDoubleToVector(vectorB));
-        return BLAS.dot(vecA.vector, vecB.vector)/(vecA.l2Norm * vecB.l2Norm);
-    }
-
-    
-
     public static Double CosineDistance(Double[] vectorA, Double[] vectorB){
         return 1 - CosineSimilarity(vectorA, vectorB);
     }
@@ -128,10 +119,6 @@ public class SimilarityJoinsUtil {
             counter++;
         }
         return doubleArray;
-    }
-
-    public static DenseVector arrayDoubleToVector(Double[] array){
-        return Vectors.dense(ArrayUtils.toPrimitive(array));
     }
 
     public static double nextSkewedBoundedDouble(double min, double max, double skew, double bias, Random rand) {
@@ -370,7 +357,7 @@ public class SimilarityJoinsUtil {
                 Double[] comEmb = toCompare.f2;
                 for(Tuple3<Long,Integer,Double[]> r : records){
                     Double[] emb = r.f2;
-                    Double dist = AngularDistance(comEmb, emb, false);
+                    Double dist = AngularDistance(comEmb, emb);
 //                    if(toCompare.f1 == 992 && r.f1==244){
 //                        System.out.println(dist);
 //                    }
@@ -434,7 +421,7 @@ public class SimilarityJoinsUtil {
                 Double[] comEmb = toCompare.f2;
                 for(Tuple3<Long,Integer,Double[]> r : recordsRight){
                     Double[] emb = r.f2;
-                    Double dist = AngularDistance(comEmb, emb, false);
+                    Double dist = AngularDistance(comEmb, emb);
                     if(dist < threshold){
                         String toWrite = new Tuple2<String, String>(toCompare.f1.toString() + "L", r.f1.toString() + "R").toString()
                                 .replaceAll("\\(","").replaceAll("\\)","") + "\n";
