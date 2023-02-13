@@ -10,7 +10,7 @@ kubectl create clusterrolebinding flink-role-binding-default --clusterrole=edit 
 $FLINK_HOME/bin/kubernetes-session.sh \
     -Dkubernetes.cluster-id=my-first-flink-cluster \
     -Dkubernetes.namespace=flink\
-    -Dkubernetes.container.image=gsiachamis/flink-ml-blis:1.0 \
+    -Dkubernetes.container.image=gsiachamis/flink:1.15-snapshot-delta-1.0 \
     -Dstate.backend=hashmap \
     -Dstate.checkpoints.dir=s3://flink/checkpoints \
     -Dstate.savepoints.dir=s3://flink/savepoints \

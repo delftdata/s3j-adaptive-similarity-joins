@@ -38,16 +38,16 @@ do
 
   printf '\nCreating result plots...\n'
   offset="$(kubectl exec -i kafka-0 -n kafka -- opt/bitnami/kafka/bin/kafka-get-offsets.sh --bootstrap-server kafka:9092 --topic pipeline-out-stats < /dev/null | awk -F':' '{print $3}')"
-  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":30009" -e "$offset" -n "$name"
+  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":30094" -e "$offset" -n "$name"
   python ~/ssj-experiment-results/draw.py -n "$name" 
   printf '\nPlots are ready...\n'
 
-  # printf '\nReset experimental environment\n'
-  # curl http://coordinator:30080/reset_environment
-  # printf "\n\n"
-  # printf 'Reset kafka topics...\n'
-  # ./reset_kafka_topics.sh < /dev/null
-  # printf '\nEverything is reset!\n\n'
+  printf '\nReset experimental environment\n'
+  curl http://coordinator:30080/reset_environment
+  printf "\n\n"
+  printf 'Reset kafka topics...\n'
+  ./reset_kafka_topics.sh < /dev/null
+  printf '\nEverything is reset!\n\n'
 
 done < "$input"
 
