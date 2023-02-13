@@ -19,6 +19,7 @@ public class GaussianMultiDimStreamGenerator extends Gaussian2DStreamGenerator{
         while (isRunning && (timestamp < tmsp)) {
             // this synchronized block ensures that state checkpointing,
             // internal state updates and emission of elements are an atomic operation
+            long startMeasuring = System.nanoTime();
             synchronized (ctx.getCheckpointLock()) {
                 if(tRate > 0) {
                     Double[] nextStreamItem = new Double[dimensions];
@@ -34,7 +35,7 @@ public class GaussianMultiDimStreamGenerator extends Gaussian2DStreamGenerator{
                     tRate = rate;
                 }
             }
-            busyWaitMicros(this.sleepInterval);
+            busyWaitMicros(this.sleepInterval, startMeasuring);
         }
     }
 }

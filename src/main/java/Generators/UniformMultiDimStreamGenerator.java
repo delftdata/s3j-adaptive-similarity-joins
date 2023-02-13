@@ -18,22 +18,21 @@ public class UniformMultiDimStreamGenerator extends Uniform2DStreamGenerator{
         while (isRunning && (timestamp < tmsp)) {
             // this synchronized block ensures that state checkpointing,
             // internal state updates and emission of elements are an atomic operation
-            synchronized (ctx.getCheckpointLock()) {
-                if(tRate > 0) {
-                    Double[] nextStreamItem = new Double[dimensions];
-                    for(int d=0; d<dimensions; d++) {
-                        nextStreamItem[d] = rng.nextDouble() * 2 - 1;
-                    }
-                    ctx.collect(new Tuple3<>(timestamp, id, nextStreamItem));
-                    id++;
-                    tRate--;
+            long startMeasuring = System.nanoTime();
+            if(tRate > 0) {
+                Double[] nextStreamItem = new Double[dimensions];
+                for(int d=0; d<dimensions; d++) {
+                    nextStreamItem[d] = rng.nextDouble() * 2 - 1;
                 }
-                else{
-                    timestamp++;
-                    tRate = rate;
-                }
+                ctx.collect(new Tuple3<>(timestamp, id, nextStreamItem));
+                id++;
+                tRate--;
             }
-            busyWaitMicros(this.sleepInterval);
+            else{
+                timestamp++;
+                tRate = rate;
+            }
+            busyWaitMicros(this.sleepInterval, startMeasuring);
         }
     }
 }

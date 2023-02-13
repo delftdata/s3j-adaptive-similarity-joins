@@ -17,6 +17,7 @@ public class UniformWordStreamGenerator extends ZipfianWordStreamGenerator{
         while (isRunning && timestamp < tmsp) {
             // this synchronized block ensures that state checkpointing,
             // internal state updates and emission of elements are an atomic operation
+            long startMeasuring = System.nanoTime();
             synchronized (ctx.getCheckpointLock()) {
                 if(tRate > 0) {
                     int wordIndex = rng.nextInt(wordArray.length);
@@ -30,7 +31,7 @@ public class UniformWordStreamGenerator extends ZipfianWordStreamGenerator{
                     tRate = rate;
                 }
             }
-            busyWaitMicros(this.sleepInterval);
+            busyWaitMicros(this.sleepInterval, startMeasuring);
         }
     }
 }

@@ -58,26 +58,26 @@ public class Uniform2DStreamGenerator implements SourceFunction<Tuple3<Long, Int
         while (isRunning && (timestamp < tmsp)) {
             // this synchronized block ensures that state checkpointing,
             // internal state updates and emission of elements are an atomic operation
-            synchronized (ctx.getCheckpointLock()) {
-                if(tRate > 0) {
-                    Double[] nextStreamItem = new Double[2];
-                    nextStreamItem[0] = rng.nextDouble() * 2 - 1;
-                    nextStreamItem[1] = rng.nextDouble() * 2 - 1;
-                    ctx.collect(new Tuple3<>(timestamp, id, nextStreamItem));
-                    id++;
-                    tRate--;
-                }
-                else{
-                    timestamp++;
-                    tRate = rate;
-                }
+            long startMeasuring = System.nanoTime();
+            if(tRate > 0) {
+                Double[] nextStreamItem = new Double[2];
+                nextStreamItem[0] = rng.nextDouble() * 2 - 1;
+                nextStreamItem[1] = rng.nextDouble() * 2 - 1;
+                ctx.collect(new Tuple3<>(timestamp, id, nextStreamItem));
+                id++;
+                tRate--;
             }
-            busyWaitMicros(this.sleepInterval);
+            else{
+                timestamp++;
+                tRate = rate;
+            }
+        
+            busyWaitMicros(this.sleepInterval, startMeasuring);
         }
     }
 // code from http://www.rationaljava.com/2015/10/measuring-microsecond-in-java.html
-    public static void busyWaitMicros(long micros){
-        long waitUntil = System.nanoTime() + (micros * 1_000);
+    public static void busyWaitMicros(long micros, long startMeasuring){
+        long waitUntil = startMeasuring + (micros * 1_000);
         while(waitUntil > System.nanoTime()){
             ;
         }

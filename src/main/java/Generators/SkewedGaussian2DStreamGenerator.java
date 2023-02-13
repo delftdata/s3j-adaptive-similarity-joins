@@ -61,6 +61,7 @@ public class SkewedGaussian2DStreamGenerator implements SourceFunction<Tuple3<Lo
         while (isRunning && (timestamp < tmsp)) {
             // this synchronized block ensures that state checkpointing,
             // internal state updates and emission of elements are an atomic operation
+            long startMeasuring = System.nanoTime();
             synchronized (ctx.getCheckpointLock()) {
                 if(tRate > 0) {
                     Double[] nextStreamItem = new Double[2];
@@ -75,12 +76,12 @@ public class SkewedGaussian2DStreamGenerator implements SourceFunction<Tuple3<Lo
                     tRate = rate;
                 }
             }
-            busyWaitMicros(this.sleepInterval);
+            busyWaitMicros(this.sleepInterval, startMeasuring);
         }
     }
 
-    public static void busyWaitMicros(long micros){
-        long waitUntil = System.nanoTime() + (micros * 1_000);
+    public static void busyWaitMicros(long micros, long startMeasuring){
+        long waitUntil = startMeasuring + (micros * 1_000);
         while(waitUntil > System.nanoTime()){
             ;
         }

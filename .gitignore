@@ -14,3 +14,4 @@ log.out
 /kubernetes/coordinator-api-calls.sh
 ./dependency-reduced-pom.xml
 kubernetes/update_hostname.sh
+/src/main/java/StreamGeneratorComponent/target/
