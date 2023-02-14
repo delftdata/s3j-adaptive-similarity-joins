@@ -2,7 +2,7 @@
 
 kafka_bootstrap="kafka"
 input="$PWD/experiments.txt"
-metrics=Flat_Map.numRecordsInPerSecond,Flat_Map.numRecordsOutPerSecond,Sink__Unnamed.KafkaProducer.record-send-rate
+metrics=Co-Process-Broadcast-Keyed.numRecordsInPerSecond,Co-Process-Broadcast-Keyed.numRecordsOutPerSecond,Sink__Unnamed.KafkaProducer.record-send-rate
 
 while IFS= read -r line
 do
@@ -16,7 +16,7 @@ do
   curl http://coordinator:30080/setup
 
   printf '\nStart join job... \n'
-  curl -X POST -H "Content-Type: application/json" -d "{\"args\": $ssj_args}" http://coordinator:5000/start_clusterjoin
+  curl -X POST -H "Content-Type: application/json" -d "{\"args\": $ssj_args}" http://coordinator:30080/start_clusterjoin
   printf '\nJob started...\n'
   sleep 60
 
@@ -37,8 +37,8 @@ do
 
   printf '\nCreating result plots...\n'
   offset="$(kubectl exec -i kafka-0 -n kafka -- opt/bitnami/kafka/bin/kafka-get-offsets.sh --bootstrap-server kafka:9092 --topic pipeline-out-stats < /dev/null | awk -F':' '{print $3}')"
-  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":30094" -e "$offset" -n "$name"
-  python ~/ssj-experiment-results/draw.py -n "$name"
+  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":30094" -e "$offset" -n "$name" -l "/workspace/gsiachamis/ssj-results-debs"
+  python ~/ssj-experiment-results/draw.py -n "$name" -l "/workspace/gsiachamis/ssj-results-debs"
   printf '\nPlots are ready...\n'
 
   printf '\nReset experimental environment\n'
