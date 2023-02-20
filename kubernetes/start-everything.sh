@@ -4,7 +4,7 @@ kubectl delete configmap env-config
 kubectl create configmap env-config --from-env-file=./environment/.env
 
 ./redeploy-minio.sh
-./redeploy-kafka-bitnami.sh
+./redeploy-kafka.sh
 ./redeploy-coordinator.sh
 #./redeploy-monitor.sh
 

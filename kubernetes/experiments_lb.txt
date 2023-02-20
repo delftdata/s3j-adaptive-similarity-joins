@@ -1,0 +1,1 @@
+2min-1minWin-5mon-2000rate-995sim-5p-uniform2D-debs-LB-2nd_run;"-twoStreams, -threshold, 0.995, -monitoringWindow, 5, -processingWindow, 120, -parallelism, 5, -centroidsDim, 2";"-delay, 1, -duration, 60, -rate, 2000, -dimensions, 2, uniform_MD_generator, uniform_MD_generator";"-delay, 1, -duration, 60, -rate, 2000, -dimensions, 2, uniform_MD_generator, uniform_MD_generator"

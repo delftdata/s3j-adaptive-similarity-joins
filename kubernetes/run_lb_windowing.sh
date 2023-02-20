@@ -36,15 +36,44 @@ do
       break
     fi
   done
+  sleep 10
+
+  curl http://coordinator:30080/cancel_join_job
+  sleep 30
+  kubectl exec -n kafka -i kafka-0 -- opt/bitnami/kafka/bin/kafka-topics.sh --delete --topic pipeline-in-left --bootstrap-server kafka:9092
+  kubectl exec -n kafka -i kafka-0 -- opt/bitnami/kafka/bin/kafka-topics.sh --delete --topic pipeline-in-right --bootstrap-server kafka:9092
+  kubectl exec -n kafka -i kafka-0 -- opt/bitnami/kafka/bin/kafka-topics.sh --create --topic pipeline-in-left --bootstrap-server kafka:9092 --partitions 15 --replication-factor 1
+  kubectl exec -n kafka -i kafka-0 -- opt/bitnami/kafka/bin/kafka-topics.sh --create --topic pipeline-in-right --bootstrap-server kafka:9092 --partitions 15 --replication-factor 1
+
+  printf "Restarting join job..."
+  curl -X POST -H "Content-Type: application/json" -d "{\"args\": $ssj_args}" http://coordinator:30080/start
+  printf '\nJob started...\n'
+  sleep 60
+
 
   printf '\nStarting 2nd generator...\n'
   curl -X POST -H "Content-Type: application/json" \
       -d "{\"args\": $generator_args_2}" \
       http://coordinator:30080/start_generator
 
-  printf '\nStarting flink metrics monitoring...\n'
-  python ~/ssj-experiment-results/get_flink_metrics.py -en "$name" -om $metrics
-  printf 'Experiment finished... \n'
+  while true
+  do
+    sleep 10
+    tmp="$(curl --silent http://coordinator:30080/jobs | grep -c 'RUNNING')"
+    if (( tmp < 2 ))
+    then
+      printf '\nFirst generator finished\n'
+      break
+    fi
+  done
+  sleep 10
+
+  curl http://coordinator:30080/cancel_join_job
+  sleep 30
+  kubectl exec -n kafka -i kafka-0 -- opt/bitnami/kafka/bin/kafka-topics.sh --delete --topic pipeline-in-left --bootstrap-server kafka:9092
+  kubectl exec -n kafka -i kafka-0 -- opt/bitnami/kafka/bin/kafka-topics.sh --delete --topic pipeline-in-right --bootstrap-server kafka:9092
+  kubectl exec -n kafka -i kafka-0 -- opt/bitnami/kafka/bin/kafka-topics.sh --create --topic pipeline-in-left --bootstrap-server kafka:9092 --partitions 15 --replication-factor 1
+  kubectl exec -n kafka -i kafka-0 -- opt/bitnami/kafka/bin/kafka-topics.sh --create --topic pipeline-in-right --bootstrap-server kafka:9092 --partitions 15 --replication-factor 1
 
   printf '\nCalculating stats...\n'
   curl http://coordinator:30080/start_stats?parallelism=5

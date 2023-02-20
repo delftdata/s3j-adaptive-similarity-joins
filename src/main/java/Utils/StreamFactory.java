@@ -78,8 +78,8 @@ public class StreamFactory {
         return skewed_gaussian2D;
     }
 
-    public DataStream<InputTuple> createUniformMDStream(int seed, int rate, Long tmsp, int delay, int dimensions){
-        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new UniformMultiDimStreamGenerator(seed, rate, tmsp, delay, dimensions));
+    public DataStream<InputTuple> createUniformMDStream(int seed, int dimensions, int rate, int sleepsPerSecond, int sleepTime, int duration){
+        DataStream<Tuple3<Long, Integer, Double[]>> initial = env.addSource(new UniformMultiDimStreamGenerator(seed, dimensions, rate, sleepsPerSecond, sleepTime, duration));
         DataStream<InputTuple> uniform = initial.map(x -> new InputTuple(x.f0, System.currentTimeMillis(), x.f1, x.f2))
                 .returns(TypeInformation.of(new TypeHint<InputTuple>() {}));
         uniform = uniform.assignTimestampsAndWatermarks(new AscendingTimestampExtractor<InputTuple>() {
@@ -173,6 +173,8 @@ public class StreamFactory {
             int dimensions,
             String embeddingsFile,
             String imdbFile,
+            int sleepsPerSecond,
+            int sleepTime,
             int seed) throws Exception {
 
         DataStream<InputTuple> dataStream;
@@ -185,9 +187,6 @@ public class StreamFactory {
                 break;
             case "skewed_gaussian_2D_generator":
                 dataStream = createSkewedGaussian2DStream(seed, rate, (long) duration, delay);
-                break;
-            case "uniform_2D_generator":
-                dataStream = createUniformMDStream(seed, rate, (long) duration, delay, 2);
                 break;
             case "pareto_2D_generator":
                 dataStream = createPareto2DStream(1.0, 10.0 , rate, (long) duration, delay);
@@ -203,7 +202,7 @@ public class StreamFactory {
                                 .map(new WordsToEmbeddingMapper("1K_embeddings", minio, LOG));
                 break;
             case "uniform_MD_generator":
-                dataStream = createUniformMDStream(seed, rate, (long) duration, delay, dimensions);
+                dataStream = createUniformMDStream(seed, dimensions, rate, sleepsPerSecond, sleepTime, duration);
                 break;
             case "gaussian_MD_generator":
                 dataStream = createGaussianMDStream(seed, rate, (long) duration, delay, dimensions);

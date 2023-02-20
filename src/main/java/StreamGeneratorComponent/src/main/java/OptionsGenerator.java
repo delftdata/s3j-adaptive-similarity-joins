@@ -42,6 +42,12 @@ public class OptionsGenerator {
     @Option(name="-dataset", usage="The dataset to be streamed.")
     private String dataset;
 
+    @Option(name="-sleepsPerSecond", usage="How many times the generator should sleep per second.")
+    private int sleepsPerSecond = 1;
+
+    @Option(name="-sleepTime", usage="How long should the generator sleep.")
+    private int sleepTime = 100;
+
     // All option-less arguments
     @Argument
     private List<String> streams = new ArrayList<>();
@@ -91,6 +97,14 @@ public class OptionsGenerator {
 
     public String getDataset() {
         return dataset;
+    }
+
+    public int getSleepsPerSecond(){
+        return sleepsPerSecond;
+    }
+
+    public int getSleepTime(){
+        return sleepTime;
     }
 
 }

@@ -12,7 +12,7 @@ HOSTNAME=$1
 if [ -n "$(grep $HOSTNAME /etc/hosts)" ]
 then
     echo "$HOSTNAME found in your $ETC_HOSTS, Removing now...";
-    echo "sudo password" | sudo -S sed -i".bak" "/$HOSTNAME/d" $ETC_HOSTS
+    echo "4655TuD7@" | sudo -S sed -i".bak" "/$HOSTNAME/d" $ETC_HOSTS
 else
     echo "$HOSTNAME was not found in your $ETC_HOSTS";
 fi
@@ -20,7 +20,7 @@ fi
 HOSTS_LINE="$IP\t$HOSTNAME"
 
 echo "Adding $HOSTNAME to your $ETC_HOSTS";
-echo "sudo password" | sudo -S -- sh -c -e "echo '$HOSTS_LINE' >> /etc/hosts";
+echo "4655TuD7@" | sudo -S -- sh -c -e "echo '$HOSTS_LINE' >> /etc/hosts";
 
 if [ -n "$(grep $HOSTNAME /etc/hosts)" ]
     then

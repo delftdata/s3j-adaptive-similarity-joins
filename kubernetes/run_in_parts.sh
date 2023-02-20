@@ -37,9 +37,9 @@ do
   printf '\nStats calculated\n'
 
   printf '\nCreating result plots...\n'
-  offset="$(kubectl exec -i kafka-0 -n kafka -- opt/bitnami/kafka/bin/kafka-get-offsets.sh --bootstrap-server kafka:9092 --topic pipeline-out-stats < /dev/null | awk -F':' '{print $3}')"
-  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":30094" -e "$offset" -n "$name" -l "path_to_results_dir"
-  python ~/ssj-experiment-results/draw.py -n "$name" -l "path_to_results_dir"
+  offset="$(kubectl exec -i kafka-cluster-zookeeper-0 -n kafka -- ./bin/kafka-get-offsets.sh --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --topic pipeline-out-stats < /dev/null | awk -F':' '{print $3}')"
+  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":30094" -e "$offset" -n "$name" -l "/workspace/gsiachamis/ssj-results-debs"
+  python ~/ssj-experiment-results/draw.py -n "$name" -l "/workspace/gsiachamis/ssj-results-debs"
   printf '\nPlots are ready...\n'
 
   printf '\nReset experimental environment\n'
