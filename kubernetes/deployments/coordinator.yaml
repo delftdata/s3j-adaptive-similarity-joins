@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: coordinator
-        image: gsiachamis/ssj-coordinator:debs-2.0
+        image: gsiachamis/ssj-coordinator:debs-3.0
         imagePullPolicy: Always
         ports:
         - containerPort: 5000

@@ -16,7 +16,7 @@ spec:
         type: internal
         tls: true
       - name: extern
-        type: internal
+        type: loadbalancer
         port: 9094
         tls: false
     config:
@@ -27,11 +27,11 @@ spec:
       inter.broker.protocol.version: "3.0"
     resources:
       requests:
-        memory: 8Gi
-        cpu: "2"
-      limits:
-        memory: 32Gi
+        memory: 64Gi
         cpu: "8"
+      limits:
+        memory: 128Gi
+        cpu: "16"
     storage:
       type: persistent-claim
       class: standard

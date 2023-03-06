@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-kafka_bootstrap="kafka"
+kafka_bootstrap=$(kubectl get svc kafka-cluster-kafka-extern-bootstrap -n kafka --no-headers | awk '{print $4}')
 input="$PWD/experiments.txt"
 metrics=Co-Process-Broadcast-Keyed.numRecordsInPerSecond,Co-Process-Broadcast-Keyed.numRecordsOutPerSecond,Sink__Unnamed.KafkaProducer.record-send-rate
 
@@ -38,8 +38,8 @@ do
 
   printf '\nCreating result plots...\n'
   offset="$(kubectl exec -i kafka-cluster-zookeeper-0 -n kafka -- ./bin/kafka-get-offsets.sh --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --topic pipeline-out-stats < /dev/null | awk -F':' '{print $3}')"
-  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":30094" -e "$offset" -n "$name" -l "/workspace/gsiachamis/ssj-results-debs"
-  python ~/ssj-experiment-results/draw.py -n "$name" -l "/workspace/gsiachamis/ssj-results-debs"
+  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":9094" -e "$offset" -n "$name" -l "/workspace/gsiachamis/ssj-results-debs/paper_run"
+  python ~/ssj-experiment-results/draw.py -n "$name" -l "/workspace/gsiachamis/ssj-results-debs/paper_run"
   printf '\nPlots are ready...\n'
 
   printf '\nReset experimental environment\n'

@@ -45,7 +45,7 @@ public class OptionsGenerator {
     @Option(name="-sleepsPerSecond", usage="How many times the generator should sleep per second.")
     private int sleepsPerSecond = 1;
 
-    @Option(name="-sleepTime", usage="How long should the generator sleep.")
+    @Option(name="-sleepTime", usage="How long should the generator sleep in ms.")
     private int sleepTime = 100;
 
     // All option-less arguments

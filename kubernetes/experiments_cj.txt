@@ -19,3 +19,13 @@
 5min-1minWin-5mon-2000rate-99sim-5p-50vp-uniform2D-debs-CJ-1st_run;"-twoStreams, -threshold, 0.99, -monitoringWindow, 5, -processingWindow, 60, -parallelism, 5, -centroidsDim, 2, -virtualPartitions, 50";"-delay, 1, -duration, 300, -rate, 2000, -dimensions, 2, uniform_MD_generator, uniform_MD_generator"
 5min-1minWin-5mon-2000rate-995sim-5p-50vp-uniform2D-debs-CJ-1st_run;"-twoStreams, -threshold, 0.995, -monitoringWindow, 5, -processingWindow, 60, -parallelism, 5, -centroidsDim, 2, -virtualPartitions, 50";"-delay, 1, -duration, 300, -rate, 2000, -dimensions, 2, uniform_MD_generator, uniform_MD_generator"
 5min-1minWin-5mon-2000rate-999sim-5p-50vp-uniform2D-debs-CJ-1st_run;"-twoStreams, -threshold, 0.999, -monitoringWindow, 5, -processingWindow, 60, -parallelism, 5, -centroidsDim, 2, -virtualPartitions, 50";"-delay, 1, -duration, 300, -rate, 2000, -dimensions, 2, uniform_MD_generator, uniform_MD_generator"
+
+
+5min-1minWin-5mon-500rate-80sim-5p-500vp-uniform10D-debs-CJ-paper_run;"-twoStreams, -threshold, 0.80, -monitoringWindow, 5, -processingWindow, 60, -parallelism, 5, -centroidsDim, 10, -virtualPartitions, 500";"-delay, 1, -duration, 300, -rate, 500, -dimensions, 10, -sleepsPerSecond, 100, -sleepTime, 10, uniform_MD_generator, uniform_MD_generator"
+
+
+5min-1minWin-5mon-600rate-80sim-5p-500vp-uniform10D-debs-CJ-paper_run;"-twoStreams, -threshold, 0.80, -monitoringWindow, 5, -processingWindow, 60, -parallelism, 5, -centroidsDim, 10, -virtualPartitions, 500";"-delay, 1, -duration, 300, -rate, 600, -dimensions, 10, -sleepsPerSecond, 100, -sleepTime, 10, uniform_MD_generator, uniform_MD_generator"
+5min-1minWin-5mon-300rate-60sim-15p-500vp-uniform50D-debs-CJ-paper_run;"-twoStreams, -threshold, 0.60, -monitoringWindow, 5, -processingWindow, 60, -parallelism, 5, -centroidsDim, 50, -virtualPartitions, 500";"-delay, 1, -duration, 300, -rate, 300, -dimensions, 50, -sleepsPerSecond, 100, -sleepTime, 10, uniform_MD_generator, uniform_MD_generator"
+
+
+5min-1minWin-5mon-1000rate-70sim-15p-500vp-uniform10D-debs-CJ-paper_run;"-twoStreams, -threshold, 0.70, -monitoringWindow, 5, -processingWindow, 60, -parallelism, 15, -centroidsDim, 10, -virtualPartitions, 500";"-delay, 1, -duration, 300, -rate, 1000, -dimensions, 10, -sleepsPerSecond, 100, -sleepTime, 10, uniform_MD_generator, uniform_MD_generator"

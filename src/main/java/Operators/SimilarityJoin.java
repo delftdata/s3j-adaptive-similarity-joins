@@ -134,7 +134,7 @@ public class SimilarityJoin extends KeyedBroadcastProcessFunction<Tuple3<Integer
                                 )
                         );
                     } else {
-                        if (counter == 1_000_000) {
+                        if (counter == 10_000) {
                             collector.collect(
                                     new FinalOutput(
                                             sim,
@@ -161,7 +161,7 @@ public class SimilarityJoin extends KeyedBroadcastProcessFunction<Tuple3<Integer
                                 )
                         );
                     } else {
-                        if (counter == 1_000_000) {
+                        if (counter == 10_000) {
                             collector.collect(
                                     new FinalOutput(
                                             sim,

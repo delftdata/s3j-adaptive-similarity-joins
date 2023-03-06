@@ -24,6 +24,8 @@ do
   curl -X POST -H "Content-Type: application/json" -d "{\"args\": $ssj_args}" http://coordinator:30080/start
   printf '\nJob started...\n'
   sleep 60
+  join_job=$(curl http://coordinator:30080/get_join_jobid)
+  echo $join_job
 
   printf '\nStarting generator...\n'
   curl -X POST -H "Content-Type: application/json" \
@@ -40,21 +42,33 @@ do
       break
     fi
   done
-  sleep 10
+  
+  curl -X POST -H "Content-Type: application/json" -d "{\"job_id_to_stop\": \"$join_job\"}" http://coordinator:30080/stop
 
-  curl http://coordinator:30080/cancel_join_job
-  sleep 30
+  while true
+  do
+    sleep 30
+    tmp="$(curl --silent http://coordinator:30080/jobs | grep -c 'RUNNING')"
+    echo $tmp
+    if (( tmp > 0 ))
+    then
+      printf '\nWaiting for job to stop...\n'
+    else
+      break
+    fi
+  done
+
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
 
   printf '\nCalculating stats...\n'
-  curl http://coordinator:30080/start_stats?parallelism=5
+  curl http://coordinator:30080/start_stats?parallelism=1
   sleep 20
   python ~/ssj-experiment-results/monitor_stats.py
   printf '\nStats calculated\n'
-  sleep 20
+  sleep 120
   curl http://coordinator:30080/cancel_stats_job
 
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092
@@ -62,12 +76,22 @@ do
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-side-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
 
+  kubectl apply -f deployments/monitor.yaml
 
-  printf "Restarting join job..."
-  curl -X POST -H "Content-Type: application/json" -d "{\"args\": $ssj_args}" http://coordinator:30080/start
-  printf '\nJob started...\n'
+  while true
+  do
+    sleep 10
+    tmp="$(curl --silent http://coordinator:30080/jobs | grep -c 'RUNNING')"
+    if (( tmp < 1 ))
+    then
+      printf '\nWaiting for job to restart...\n'
+    else  
+      break
+    fi
+  done
+  kubectl delete deploy monitor
   sleep 60
-
+  join_job=$(curl http://coordinator:30080/get_join_jobid)
 
   printf '\nStarting 2nd generator...\n'
   curl -X POST -H "Content-Type: application/json" \
@@ -84,21 +108,32 @@ do
       break
     fi
   done
-  sleep 30
 
-  curl http://coordinator:30080/cancel_join_job
-  sleep 30
+  curl -X POST -H "Content-Type: application/json" -d "{\"job_id_to_stop\": \"$join_job\"}" http://coordinator:30080/stop
+
+  while true
+  do
+    sleep 30
+    tmp="$(curl --silent http://coordinator:30080/jobs | grep -c 'RUNNING')"
+    if (( tmp > 0 ))
+    then
+      printf '\nWaiting for job to stop...\n'
+    else
+      break
+    fi
+  done
+  
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
 
   printf '\nCalculating stats...\n'
-  curl http://coordinator:30080/start_stats?parallelism=5
+  curl http://coordinator:30080/start_stats?parallelism=1
   sleep 20
   python ~/ssj-experiment-results/monitor_stats.py
   printf '\nStats calculated\n'
-  sleep 20
+  sleep 120
   curl http://coordinator:30080/cancel_stats_job
 
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092
@@ -106,10 +141,22 @@ do
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-side-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
 
-  printf "Restarting join job..."
-  curl -X POST -H "Content-Type: application/json" -d "{\"args\": $ssj_args}" http://coordinator:30080/start
-  printf '\nJob started...\n'
+  kubectl apply -f deployments/monitor.yaml
+  
+  while true
+  do
+    sleep 10
+    tmp="$(curl --silent http://coordinator:30080/jobs | grep -c 'RUNNING')"
+    if (( tmp < 1 ))
+    then
+      printf '\nWaiting for job to restart...\n'
+    else  
+      break
+    fi
+  done
+  kubectl delete deploy monitor
   sleep 60
+  join_job=$(curl http://coordinator:30080/get_join_jobid)
 
   printf '\nStarting 3rd generator...\n'
   curl -X POST -H "Content-Type: application/json" \
@@ -128,19 +175,30 @@ do
   done
   sleep 30
 
-  curl http://coordinator:30080/cancel_join_job
-  sleep 30
+  curl -X POST -H "Content-Type: application/json" -d "{\"job_id_to_stop\": \"$join_job\"}" http://coordinator:30080/stop
+  while true
+  do
+    sleep 30
+    tmp="$(curl --silent http://coordinator:30080/jobs | grep -c 'RUNNING')"
+    if (( tmp > 0 ))
+    then
+      printf '\nWaiting for job to stop...\n'
+    else  
+      break
+    fi
+  done
+  
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
 
   printf '\nCalculating stats...\n'
-  curl http://coordinator:30080/start_stats?parallelism=5
+  curl http://coordinator:30080/start_stats?parallelism=1
   sleep 20
   python ~/ssj-experiment-results/monitor_stats.py
   printf '\nStats calculated\n'
-  sleep 20
+  sleep 120
   curl http://coordinator:30080/cancel_stats_job
 
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092
@@ -148,11 +206,22 @@ do
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-side-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
 
-
-  printf "Restarting join job..."
-  curl -X POST -H "Content-Type: application/json" -d "{\"args\": $ssj_args}" http://coordinator:30080/start
-  printf '\nJob started...\n'
+  kubectl apply -f deployments/monitor.yaml
+  
+  while true
+  do
+    sleep 10
+    tmp="$(curl --silent http://coordinator:30080/jobs | grep -c 'RUNNING')"
+    if (( tmp < 1 ))
+    then
+      printf '\nWaiting for job to restart...\n'
+    else  
+      break
+    fi
+  done
+  kubectl delete deploy monitor
   sleep 60
+  join_job=$(curl http://coordinator:30080/get_join_jobid)
 
   printf '\nStarting 4th generator...\n'
   curl -X POST -H "Content-Type: application/json" \
@@ -169,19 +238,53 @@ do
       break
     fi
   done
-  sleep 30
-
-  curl http://coordinator:30080/cancel_join_job
-  sleep 30
+  curl -X POST -H "Content-Type: application/json" -d "{\"job_id_to_stop\": \"$join_job\"}" http://coordinator:30080/stop
+  while true
+  do
+    sleep 30
+    tmp="$(curl --silent http://coordinator:30080/jobs | grep -c 'RUNNING')"
+    if (( tmp > 0 ))
+    then
+      printf '\nWaiting for job to stop...\n'
+    else  
+      break
+    fi
+  done
+  
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-in-left --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
   kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-in-right --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
 
-  printf "Restarting join job..."
-  curl -X POST -H "Content-Type: application/json" -d "{\"args\": $ssj_args}" http://coordinator:30080/start
-  printf '\nJob started...\n'
+  printf '\nCalculating stats...\n'
+  curl http://coordinator:30080/start_stats?parallelism=1
+  sleep 20
+  python ~/ssj-experiment-results/monitor_stats.py
+  printf '\nStats calculated\n'
+  sleep 120
+  curl http://coordinator:30080/cancel_stats_job
+
+  kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092
+  kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --delete --topic pipeline-side-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092
+  kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
+  kubectl exec -n kafka -i kafka-cluster-zookeeper-0 -- ./bin/kafka-topics.sh --create --topic pipeline-side-out --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --partitions 15 --replication-factor 1
+
+  kubectl apply -f deployments/monitor.yaml
+  
+  while true
+  do
+    sleep 10
+    tmp="$(curl --silent http://coordinator:30080/jobs | grep -c 'RUNNING')"
+    if (( tmp < 1 ))
+    then
+      printf '\nWaiting for job to restart...\n'
+    else  
+      break
+    fi
+  done
+  kubectl delete deploy monitor
   sleep 60
+  join_job=$(curl http://coordinator:30080/get_join_jobid)
 
   printf '\nStarting 5th generator...\n'
   curl -X POST -H "Content-Type: application/json" \
@@ -209,15 +312,16 @@ do
 
 
   printf '\nCalculating stats...\n'
-  curl http://coordinator:30080/start_stats?parallelism=5
+  curl http://coordinator:30080/start_stats?parallelism=1
   sleep 20
   python ~/ssj-experiment-results/monitor_stats.py
   printf '\nStats calculated\n'
+  sleep 120
 
   printf '\nCreating result plots...\n'
   offset="$(kubectl exec -i kafka-cluster-zookeeper-0 -n kafka -- ./bin/kafka-get-offsets.sh --bootstrap-server kafka-cluster-kafka-bootstrap:9092 --topic pipeline-out-stats < /dev/null | awk -F':' '{print $3}')"
-  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":9094" -e "$offset" -n "$name" -l "/workspace/gsiachamis/ssj-results-debs"
-  python ~/ssj-experiment-results/draw.py -n "$name" -l "/workspace/gsiachamis/ssj-results-debs"
+  python ~/ssj-experiment-results/main.py -k "$kafka_bootstrap"":9094" -e "$offset" -n "$name" -l "/workspace/gsiachamis/ssj-results-debs/lb_run"
+  python ~/ssj-experiment-results/draw.py -n "$name" -l "/workspace/gsiachamis/ssj-results-debs/lb_run"
   printf '\nPlots are ready...\n'
 
   printf '\nReset experimental environment\n'
