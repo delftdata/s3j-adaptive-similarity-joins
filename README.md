@@ -1,4 +1,7 @@
-# onlinePartitioningForSsj
+# Adaptive Distributed Streaming Similarity Joins
+
+Code repository for Adaptive Distributed Streaming Similarity Joins published in DEBS 2023.
+
 
 ## Kubernetes Minikube Setup Instructions
 
