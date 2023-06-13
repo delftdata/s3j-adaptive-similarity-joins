@@ -17,6 +17,18 @@ public class Options {
     @Option(name="-centroidsNum", usage="Number of centroids to use.")
     private int centroidsNum = 10;
 
+    @Option(name="-threshold", usage="Similarity threshold to use.")
+    private double threshold = 0.9;
+
+    @Option(name="-monitoringWindow", usage="The length of the time window used for monitoring the pipeline.(In seconds)",
+            required = true)
+    private int windowLength;
+
+    @Option(name="-parallelism", usage="Define the desired level of parallelism. DEFAULT: 10")
+    private int parallelism = 10;
+
+    @Option(name="-processingWindow", usage = "Define the length of the processing window in seconds.")
+    private int processingWindow = 60;
 
     // Getters, setters, etc
     public boolean hasSecondStream() { return twoStreams; }
@@ -25,9 +37,19 @@ public class Options {
         return centroidsDim;
     }
 
-    public int getCentroidsNum() {
-        return centroidsNum;
-    }
+    public int getCentroidsNum() { return centroidsNum; }
+
+    public double getThreshold() { return threshold; }
 
     public String getKafkaURL() { return kafkaURL; }
+
+    public int getWindowLength() { return windowLength; }
+
+    public int getParallelism() {
+        return parallelism;
+    }
+
+    public int getProcessingWindow() {
+        return processingWindow;
+    }
 }

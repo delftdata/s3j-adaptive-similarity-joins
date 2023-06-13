@@ -1,14 +1,18 @@
 #!/bin/bash
-./minikube-restart.sh
 
+kubectl delete configmap env-config
 kubectl create configmap env-config --from-env-file=./environment/.env
 
-./deploy-minio.sh
-./deploy-kafka.sh
-./deploy-coordinator.sh
-./deploy-monitor.sh
+./redeploy-minio.sh
+./redeploy-kafka.sh
+./redeploy-coordinator.sh
+#./redeploy-monitor.sh
 
-# Might need a wait loop for MinIO? Unless the service is up immediately
-./deploy-flink.sh
+while [[ -z "$(kubectl get svc minio | awk '{print $3}')" ]]; do
+	echo 'MinIO service has no cluster IP yet, waiting...'
+	sleep 1
+done
+./redeploy-flink.sh
 
-minikube dashboard
+./update_hostname.sh flink-rest 127.0.0.1
+./update_hostname.sh coordinator 127.0.0.1

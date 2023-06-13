@@ -14,8 +14,7 @@ import org.apache.flink.util.OutputTag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Int;
-import scala.concurrent.java8.FuturesConvertersImpl;
+
 
 import java.nio.charset.Charset;
 import java.nio.file.Files;

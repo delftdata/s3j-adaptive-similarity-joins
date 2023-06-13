@@ -5,7 +5,7 @@ import CustomDataTypes.SPTuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.util.Collector;
 
@@ -31,13 +31,13 @@ public class AdaptiveCoPartitioner extends KeyedCoProcessFunction<Integer, SPTup
     @Override
     public void processElement1(SPTuple t, Context context, Collector<FinalTuple> collector) throws Exception {
         companion.assignGroup(t, collector, "left");
-        collectStats(t, context);
+//        collectStats(t, context);
     }
 
     @Override
     public void processElement2(SPTuple t, Context context, Collector<FinalTuple> collector) throws Exception {
         companion.assignGroup(t, collector, "right");
-        collectStats(t, context);
+//        collectStats(t, context);
     }
 
     @Override

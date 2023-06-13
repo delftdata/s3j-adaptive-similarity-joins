@@ -15,6 +15,15 @@ public class ShortFinalOutputMapper implements MapFunction<FinalOutput, ShortFin
             inputTimestamp = finalOutput.f2.f7;
         }
 
-        return new ShortFinalOutput(finalOutput.f3, inputTimestamp, finalOutput.f1.f8, finalOutput.f2.f8, finalOutput.f1.f10);
+        return new ShortFinalOutput(
+                finalOutput.f3,
+                inputTimestamp,
+                finalOutput.f1.f8,
+                finalOutput.f2.f8,
+                finalOutput.f1.f10,
+                finalOutput.f1.f2,
+                finalOutput.f1.f0,
+                finalOutput.f0
+                );
     }
 }

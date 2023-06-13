@@ -18,6 +18,6 @@ public class GroupLevelFinalComputationsStatsProcess extends ProcessWindowFuncti
                         Iterable<GroupLevelShortOutput> iterable,
                         Collector<GroupLevelShortOutput> collector) throws Exception {
         GroupLevelShortOutput input = iterable.iterator().next();
-        collector.collect(new GroupLevelShortOutput(context.window().getStart(), input.f1, input.f2, input.f3, input.f4));
+        collector.collect(new GroupLevelShortOutput(context.window().getStart(), input.f1, input.f2, input.f3, input.f4, input.f5));
     }
 }

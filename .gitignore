@@ -10,3 +10,8 @@ libs/*
 /src/main/resources/streamed_dataset.txt/*
 log.out
 *.iml
+/kubernetes/environment/dependencies.env
+/kubernetes/coordinator-api-calls.sh
+./dependency-reduced-pom.xml
+kubernetes/update_hostname.sh
+/src/main/java/StreamGeneratorComponent/target/

@@ -1,5 +1,12 @@
 package Utils;
 
+import CustomDataTypes.InputTuple;
+import CustomDataTypes.MinioConfiguration;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import io.minio.GetObjectArgs;
+import io.minio.MinioClient;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.math3.distribution.ParetoDistribution;
 import org.apache.commons.math3.distribution.ZipfDistribution;
@@ -8,22 +15,49 @@ import org.apache.commons.math3.random.Well19937c;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
-import scala.Int;
-import scala.concurrent.java8.FuturesConvertersImpl;
+import org.apache.flink.api.java.tuple.Tuple4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+
+import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 public class SimilarityJoinsUtil {
 
     static String pwd = Paths.get("").toAbsolutePath().toString();
+
+    public static Predicate<String> isContained(Set<String> embeddingsKeys){
+
+        return p -> {
+            String[] words = p.split("\\s+");
+            for(String w : words){
+                if(!w.equals("Episode")) {
+                    if (embeddingsKeys.contains(w)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+    }
+
+//    public static Predicate<String> isField(Set<String> embeddingsKeys, String field){
+//
+//        return p -> {
+//            if p
+//        };
+//    }
+
+    private static final Logger LOG = LoggerFactory.getLogger(SimilarityJoinsUtil.class);
 
     public static HashMap<Integer, Double[]> RandomCentroids(int numCentroids, int dimension){
 
@@ -406,20 +440,193 @@ public class SimilarityJoinsUtil {
 
     }
 
-    public static HashMap<String, Double[]> readEmbeddings(String file4WE) throws Exception{
+    public static HashMap<String, Double[]> readEmbeddings(String minioObject, MinioConfiguration minio, Logger LOG)
+            throws Exception{
+
         HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
-        try (Stream<String> lines = Files.lines(Paths.get(pwd + "/src/main/resources/"+file4WE),Charset.defaultCharset()).skip(1)) {
-            lines.map(l -> l.split(" ",2))
-                    .forEach(l -> wordEmbeddings.put(l[0], arrayStringToDouble(l[1].split(" "), 300)));
+
+        LOG.info("readEmbeddings function");
+        LOG.info("minio endpoint " + minio.getEndpoint());
+
+        MinioClient minioClient =
+                MinioClient.builder()
+                        .endpoint(minio.getEndpoint())
+                        .credentials(minio.getAccessKey(), minio.getSecretKey())
+                        .build();
+
+        LOG.info("Client created");
+
+        // Read input file from Minio
+        InputStream embeddingsFile = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket("embeddings")
+                        .object(minioObject)
+                        .build());
+        BufferedReader br = new BufferedReader( new InputStreamReader( embeddingsFile ) );
+        br.readLine();
+
+        LOG.info("Embeddings file read.");
+        String line = "ok";
+        try {
+            while ((line = br.readLine()) != null) {
+                String[] keyedEmbedding = line.split(" ", 2);
+                wordEmbeddings.put(keyedEmbedding[0], arrayStringToDouble(keyedEmbedding[1].split(" "), 300));
+            }
         }
+        catch(Exception e){
+            e.printStackTrace();
+            String[] keyedEmbedding = line.split(" ", 2);
+            System.out.println(keyedEmbedding[0]);
+            System.out.println(Arrays.toString(keyedEmbedding[1].split(" ")));
+            System.exit(-1);
+        }
+
+        LOG.info("Embeddings array created.");
+
+        embeddingsFile.close();
         return wordEmbeddings;
     }
 
+
+    public static HashMap<String, Double[]> readEmbeddingsLocal(String filename)
+            throws Exception{
+
+        HashMap<String, Double[]> wordEmbeddings = new HashMap<>();
+
+        LOG.info("readEmbeddings function");
+
+
+        LOG.info("Embeddings file read.");
+
+        try (Stream<String> lines = Files.lines(Paths.get(filename))) {
+            lines.skip(1).map(l -> l.split(" ",2))
+                    .forEach(l -> wordEmbeddings.put(l[0], arrayStringToDouble(l[1].split(" "), 300)));
+        }
+
+        LOG.info("Embeddings array created.");
+
+        return wordEmbeddings;
+    }
+
+    public static void cleanDataset(String embeddingsFile, String datasetFile) throws Exception {
+
+        System.out.println("Let's read embeddings");
+        Long startTime = System.currentTimeMillis();
+        HashMap<String, Double[]> embeddings = readEmbeddingsLocal(embeddingsFile);
+        System.out.println("Done with embeddings");
+        System.out.format("It took %d seconds\n",(System.currentTimeMillis()-startTime)/1000);
+        Set<String> keys = embeddings.keySet();
+
+        System.out.println("Start reading the dataset.");
+        Long startTimeData = System.currentTimeMillis();
+        try (Stream<String> lines = Files.lines(Paths.get(datasetFile))) {
+            try(PrintWriter pw = new PrintWriter(Files.newBufferedWriter(
+                    Paths.get("/Users/gsiachamis/Dropbox/My Mac (Georgios’s MacBook Pro)/Documents/GitHub/filteredIMDB_test.txt")))) {
+                lines
+                        .skip(1)
+                        .map(l -> l.split("\t")[2])
+                        .map(l -> l.replaceAll("[^\\w\\s]",""))
+                        .limit(1_000_000)
+                        .filter(isContained(keys))
+                        .forEach(pw::println);
+            }
+        }
+        System.out.println("Read all (~10M) rows.");
+        System.out.format("It took %d seconds\n",(System.currentTimeMillis()-startTimeData)/1000);
+
+    }
+
+    public static Double[] mapEmbeddings(String t, HashMap<String, Double[]> wordEmbeddings){
+        Double[] embedding = new Double[300];
+        Arrays.fill(embedding, 0.0);
+        String[] sentence = t.split(" ");
+        Set<String> keys = wordEmbeddings.keySet();
+        int sum = 0;
+//        System.out.println(Arrays.toString(sentence));
+        try {
+            for (String word : sentence) {
+                if (keys.contains(word)) {
+                    sum += 1;
+                    Double[] tmp = wordEmbeddings.get(word);
+                    for (int i = 0; i < 300; i++) {
+                        embedding[i] += tmp[i];
+                    }
+                }
+            }
+            if (sum != 0) {
+                for (int i = 0; i < 300; i++) {
+                    embedding[i] = embedding[i] / sum;
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println(Arrays.toString(sentence));
+            System.out.println(Arrays.toString(embedding));
+            System.exit(-1);
+        }
+        return embedding;
+    }
+
+    public static void createEmbeddingsFiles(String embeddingsFile, String datasetFile) throws Exception {
+
+        System.out.println("Let's read embeddings");
+        Long startTime = System.currentTimeMillis();
+        HashMap<String, Double[]> embeddings = readEmbeddingsLocal(embeddingsFile);
+        System.out.println("Done with embeddings");
+        System.out.format("It took %d seconds\n",(System.currentTimeMillis()-startTime)/1000);
+        Set<String> keys = embeddings.keySet();
+
+        System.out.println("Start reading the dataset.");
+        Long startTimeData = System.currentTimeMillis();
+        try (Stream<String> lines = Files.lines(Paths.get(datasetFile))) {
+
+            try(PrintWriter pw = new PrintWriter(Files.newBufferedWriter(
+                    Paths.get("/Users/gsiachamis/Dropbox/My Mac (Georgios’s MacBook Pro)/Documents/GitHub/embeddingsIMDB_100K.txt")))) {
+                lines
+                        .skip(1)
+                        .map(l -> l.split("\t")[2])
+                        .map(l -> l.replaceAll("[^\\w\\s]",""))
+                        .limit(100_000)
+                        .filter(isContained(keys))
+                        .map(p -> mapEmbeddings(p, embeddings))
+                        .map(Arrays::toString)
+                        .forEach(pw::println);
+            }
+        }
+        System.out.println("Read ~100K rows.");
+        System.out.format("It took %d seconds\n",(System.currentTimeMillis()-startTimeData)/1000);
+
+    }
+
+//    public void cleanAmazonDataset(String embeddingsFile, String datasetFile) throws Exception{
+//        System.out.println("Let's read embeddings");
+//        Long startTime = System.currentTimeMillis();
+//        HashMap<String, Double[]> embeddings = readEmbeddingsLocal(embeddingsFile);
+//        System.out.println("Done with embeddings");
+//        System.out.format("It took %d seconds\n",(System.currentTimeMillis()-startTime)/1000);
+//        Set<String> keys = embeddings.keySet();
+//
+//        System.out.println("Start reading the dataset.");
+//        Long startTimeData = System.currentTimeMillis();
+//        try (Stream<String> lines = Files.lines(Paths.get(datasetFile))) {
+//            try(PrintWriter pw = new PrintWriter(Files.newBufferedWriter(
+//                    Paths.get("/Users/gsiachamis/Dropbox/My Mac (Georgios’s MacBook Pro)/Documents/GitHub/filteredAmazon_100000_all.txt")))) {
+//                lines
+//                        .skip(1)
+//                        .filter()
+//                        .limit(100_000)
+//                        .filter(isContained(keys))
+//                        .forEach(pw::println);
+//            }
+//        }
+//        System.out.println("Read all (~10M) rows.");
+//        System.out.format("It took %d seconds\n",(System.currentTimeMillis()-startTimeData)/1000);
+//    }
+
     public static void main(String[] args) throws Exception{
-//        HashMap<String, Double[]> embeddings = readEmbeddings("wiki-news-300d-1K.vec");
-//        Set<String> embKeys = embeddings.keySet();
-//        createZipfianWordStream(embKeys, 1000, 10);
-        createComplex2DStream(1000,10);
+        for(int i =0 ; i<10; i++ ){
+             System.out.println((i * 128 + 10 - 1) / 10);
+        }
     }
 
 

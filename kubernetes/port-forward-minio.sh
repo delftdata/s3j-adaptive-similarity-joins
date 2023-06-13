@@ -1,2 +1,6 @@
 #!/usr/bin/env bash
-kubectl port-forward service/minio 9000
+set -o allexport
+source ./environment/dependencies.env
+set +o allexport
+
+$KUBECTL port-forward service/minio 9000

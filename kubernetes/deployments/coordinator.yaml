@@ -11,8 +11,8 @@ spec:
     spec:
       containers:
       - name: coordinator
-        image: coordinator
-        imagePullPolicy: Never
+        image: gsiachamis/ssj-coordinator:debs-3.0
+        imagePullPolicy: Always
         ports:
         - containerPort: 5000
         envFrom:
@@ -33,4 +33,4 @@ spec:
     targetPort: 5000
   selector:
     app: coordinator
-  type: LoadBalancer
+  type: ClusterIP

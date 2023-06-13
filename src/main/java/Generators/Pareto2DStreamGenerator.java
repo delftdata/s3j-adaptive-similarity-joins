@@ -13,23 +13,29 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 
+import java.util.concurrent.TimeUnit;
+
 public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Integer, Double[]>>, CheckpointedFunction {
 
-    private int id = 0;
-    private Long timestamp = 0L;
-    private Tuple3<Long, Integer, Double[]> tuple3;
-    private final ParetoDistribution pareto;
-    private int rate;
-    private Long tmsp;
-    private int tRate;
-    private volatile boolean isRunning = true;
-    private transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
+    protected int id = 0;
+    protected Long timestamp = 0L;
+    protected Tuple3<Long, Integer, Double[]> tuple3;
+    protected final ParetoDistribution pareto;
+    protected int rate;
+    protected Long tmsp;
+    protected int tRate;
+    protected int delay;
+    protected volatile boolean isRunning = true;
+    protected transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
+    protected int sleepInterval;
 
-    public Pareto2DStreamGenerator(Double scale, Double shape, int rate, Long tmsp){
+    public Pareto2DStreamGenerator(Double scale, Double shape, int rate, Long tmsp, int delay){
         this.pareto =new ParetoDistribution(new Well19937c(42), scale, shape);
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
+        this.delay = 1_000_000*delay;
+        this.sleepInterval = this.delay/this.rate;
     }
 
 
@@ -52,6 +58,7 @@ public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Inte
         while (isRunning && timestamp < tmsp) {
             // this synchronized block ensures that state checkpointing,
             // internal state updates and emission of elements are an atomic operation
+            long startMeasuring = System.nanoTime();
             synchronized (ctx.getCheckpointLock()) {
                 if(tRate > 0) {
                     Double[] nextStreamItem = new Double[2];
@@ -66,6 +73,14 @@ public class Pareto2DStreamGenerator implements SourceFunction<Tuple3<Long, Inte
                     tRate = rate;
                 }
             }
+            busyWaitMicros(this.sleepInterval, startMeasuring);
+        }
+    }
+
+    public static void busyWaitMicros(long micros, long startMeasuring){
+        long waitUntil = startMeasuring + (micros * 1_000);
+        while(waitUntil > System.nanoTime()){
+            ;
         }
     }
 

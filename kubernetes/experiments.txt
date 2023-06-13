@@ -1,0 +1,1 @@
+5min-1minWin-5mon-1000rate-70sim-15p-500vp-uniform10D-debs-CJ-paper_run;"-twoStreams, -threshold, 0.70, -monitoringWindow, 5, -processingWindow, 60, -parallelism, 15, -centroidsDim, 10, -virtualPartitions, 500";"-delay, 1, -duration, 300, -rate, 1000, -dimensions, 10, -sleepsPerSecond, 100, -sleepTime, 10, uniform_MD_generator, uniform_MD_generator"

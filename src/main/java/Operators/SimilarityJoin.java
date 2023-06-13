@@ -2,14 +2,18 @@ package Operators;
 
 import CustomDataTypes.FinalOutput;
 import CustomDataTypes.FinalTuple;
+import Utils.CleanAllJoinState;
 import Utils.SimilarityJoinsUtil;
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
+
+import org.apache.flink.runtime.state.KeyedStateFunction;
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 
 
@@ -22,16 +26,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput> {
+public class SimilarityJoin extends KeyedBroadcastProcessFunction<Tuple3<Integer,Integer,Integer>,FinalTuple,Integer,FinalOutput> {
 
     Double dist_thresh;
     private Logger LOG;
     OutputTag<Tuple3<Long, Integer, Integer>> sideJoins;
     MapState<String, HashMap<String, List<FinalTuple>>> joinState;
+    MapStateDescriptor<String, HashMap<String, List<FinalTuple>>> joinStateDesc;
+    MapStateDescriptor<Void, Integer> controlStateDescriptor = new MapStateDescriptor<Void, Integer>(
+            "ControlBroadcastState",
+            BasicTypeInfo.VOID_TYPE_INFO,
+            BasicTypeInfo.INT_TYPE_INFO) {
+    };
+    private int counter;
 
     public SimilarityJoin(Double dist_thresh) throws Exception{
         this.dist_thresh = dist_thresh;
         this.LOG = LoggerFactory.getLogger(this.getClass().getName());
+        this.counter = 0;
     }
 
     public void setSideJoins(OutputTag<Tuple3<Long, Integer, Integer>> sideJoins) {
@@ -40,12 +52,12 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        MapStateDescriptor<String, HashMap<String, List<FinalTuple>>> joinStateDesc =
+
+         joinStateDesc =
                 new MapStateDescriptor<String, HashMap<String, List<FinalTuple>>>(
                         "joinState",
                         TypeInformation.of(new TypeHint<String>() {}),
-                        TypeInformation.of(new TypeHint<HashMap<String, List<FinalTuple>>>() {
-                        })
+                        TypeInformation.of(new TypeHint<HashMap<String, List<FinalTuple>>>() {})
                 );
 
         joinState = getRuntimeContext().getMapState(joinStateDesc);
@@ -57,7 +69,8 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
     }
 
     @Override
-    public void flatMap(FinalTuple incoming,
+    public void processElement(FinalTuple incoming,
+                        ReadOnlyContext ctx,
                         Collector<FinalOutput> collector)
             throws Exception {
 
@@ -73,10 +86,13 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
             toCompare = "single";
         }
 
-
+//            LOG.info("Machine id: " + incoming.f10);
+        long insertionStart = System.currentTimeMillis();
         insertToState(incoming);
+//            LOG.info("Insert to state took: " + (System.currentTimeMillis() - insertionStart));
 
 
+        long retrieveStart = System.currentTimeMillis();
         List<FinalTuple> itemsToCompare = new ArrayList<>();
         List<FinalTuple> itemsToEmit = new ArrayList<>();
         if(joinState.contains(toCompare)) {
@@ -93,41 +109,81 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                 itemsToCompare.addAll(toCompareMap.get("inner"));
                 itemsToCompare.addAll(toCompareMap.get("outlier"));
             }
+//                LOG.info("Retrieve from state took: " + (System.currentTimeMillis() - retrieveStart));
 
 
+            long comparisonStart = System.currentTimeMillis();
             for (FinalTuple t : itemsToCompare) {
 
 //            LOG.warn(incoming.toString()+", "+t.toString());
 
-                if(isSelfJoin() && incoming.f8 == t.f8){
+                if (isSelfJoin() && incoming.f8 == t.f8) {
                     continue;
                 }
 
                 Double[] tEmbed = t.f9;
                 if ((incoming.f8 > t.f8 && isSelfJoin()) || incoming.f11.equals("left")) {
-                    collector.collect(
-                            new FinalOutput(
-                                    (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
-                                    incoming,
-                                    t,
-                                    System.currentTimeMillis()
-                            )
-                    );
+                    boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh;
+                    if (sim) {
+                        collector.collect(
+                                new FinalOutput(
+                                        sim,
+                                        incoming,
+                                        t,
+                                        System.currentTimeMillis()
+                                )
+                        );
+                    } else {
+                        if (counter == 10_000) {
+                            collector.collect(
+                                    new FinalOutput(
+                                            sim,
+                                            incoming,
+                                            t,
+                                            System.currentTimeMillis()
+                                    )
+                            );
+                            counter = 0;
+                        } else {
+                            counter++;
+                        }
+                    }
+
                 } else {
-                    collector.collect(
-                            new FinalOutput(
-                                    (SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh),
-                                    t,
-                                    incoming,
-                                    System.currentTimeMillis()
-                            )
-                    );
+                    boolean sim = SimilarityJoinsUtil.AngularDistance(incomingEmbed, tEmbed) < dist_thresh;
+                    if (sim) {
+                        collector.collect(
+                                new FinalOutput(
+                                        sim,
+                                        t,
+                                        incoming,
+                                        System.currentTimeMillis()
+                                )
+                        );
+                    } else {
+                        if (counter == 10_000) {
+                            collector.collect(
+                                    new FinalOutput(
+                                            sim,
+                                            t,
+                                            incoming,
+                                            System.currentTimeMillis()
+                                    )
+                            );
+                            counter = 0;
+                        } else {
+                            counter++;
+                        }
+                    }
+
                 }
             }
+//                LOG.info("Perform comparisons took: " + (System.currentTimeMillis() - comparisonStart));
 
-            for(FinalTuple t : itemsToEmit){
+            long groupedEmissionStart = System.currentTimeMillis();
+            for (FinalTuple t : itemsToEmit) {
 //                LOG.warn(incoming.toString()+", "+t.toString());
-                if(isSelfJoin() && incoming.f8 == t.f8){
+                if (isSelfJoin() && incoming.f8 == t.f8) {
                     continue;
                 }
                 if ((incoming.f8 > t.f8 && isSelfJoin()) || incoming.f11.equals("left")) {
@@ -150,9 +206,15 @@ public class SimilarityJoin extends RichFlatMapFunction<FinalTuple, FinalOutput>
                     );
                 }
             }
+//                LOG.info("Emitting items of the same group took: " + (System.currentTimeMillis() - groupedEmissionStart));
         }
+
     }
 
+    @Override
+    public void processBroadcastElement(Integer integer, Context context, Collector<FinalOutput> collector) throws Exception {
+        context.applyToKeyedState(this.joinStateDesc, new CleanAllJoinState());
+    }
 
 
     private void insertToState(FinalTuple incoming) throws Exception {

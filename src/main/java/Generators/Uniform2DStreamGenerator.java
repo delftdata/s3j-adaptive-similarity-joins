@@ -17,22 +17,25 @@ import java.util.concurrent.TimeUnit;
 
 public class Uniform2DStreamGenerator implements SourceFunction<Tuple3<Long, Integer, Double[]>>, CheckpointedFunction {
 
-    private int id = 0;
-    private Long timestamp = 0L;
-    private Tuple3<Long, Integer, Double[]> tuple3;
-    private Random rng;
-    private int rate;
-    private Long tmsp;
-    private int tRate;
-    private volatile boolean isRunning = true;
-    private transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
+    protected int id = 0;
+    protected Long timestamp = 0L;
+    protected Tuple3<Long, Integer, Double[]> tuple3;
+    protected Random rng;
+    protected int rate;
+    protected Long tmsp;
+    protected int tRate;
+    protected int delay;
+    protected volatile boolean isRunning = true;
+    protected transient ListState<Tuple3<Long, Integer, Double[]>> checkpointedTuples;
+    protected int sleepInterval;
 
-    public Uniform2DStreamGenerator(int seed, int rate, Long tmsp){
+    public Uniform2DStreamGenerator(int seed, int rate, Long tmsp, int delay){
         this.tRate = rate;
         this.rate = rate;
         this.tmsp = tmsp;
         this.rng = new Random(seed);
-
+        this.delay = 1_000_000*delay;
+        this.sleepInterval = this.delay/this.rate;
     }
 
 
@@ -55,26 +58,30 @@ public class Uniform2DStreamGenerator implements SourceFunction<Tuple3<Long, Int
         while (isRunning && (timestamp < tmsp)) {
             // this synchronized block ensures that state checkpointing,
             // internal state updates and emission of elements are an atomic operation
-            synchronized (ctx.getCheckpointLock()) {
-                if(tRate > 0) {
-                    Double[] nextStreamItem = new Double[2];
-                    nextStreamItem[0] = rng.nextDouble() * 2 - 1;
-                    nextStreamItem[1] = rng.nextDouble() * 2 - 1;
-                    ctx.collect(new Tuple3<>(timestamp, id, nextStreamItem));
-                    id++;
-                    tRate--;
-                }
-                else{
-                    timestamp++;
-                    tRate = rate;
-                }
+            long startMeasuring = System.nanoTime();
+            if(tRate > 0) {
+                Double[] nextStreamItem = new Double[2];
+                nextStreamItem[0] = rng.nextDouble() * 2 - 1;
+                nextStreamItem[1] = rng.nextDouble() * 2 - 1;
+                ctx.collect(new Tuple3<>(timestamp, id, nextStreamItem));
+                id++;
+                tRate--;
             }
-            if(tRate == rate) {
-                TimeUnit.SECONDS.sleep(20);
+            else{
+                timestamp++;
+                tRate = rate;
             }
+        
+            busyWaitMicros(this.sleepInterval, startMeasuring);
         }
     }
-
+// code from http://www.rationaljava.com/2015/10/measuring-microsecond-in-java.html
+    public static void busyWaitMicros(long micros, long startMeasuring){
+        long waitUntil = startMeasuring + (micros * 1_000);
+        while(waitUntil > System.nanoTime()){
+            ;
+        }
+    }
     @Override
     public void cancel() {
         isRunning = false;

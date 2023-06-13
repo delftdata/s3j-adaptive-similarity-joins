@@ -15,7 +15,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.tuple.Tuple8;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
@@ -30,6 +30,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
     private double dist_thresh;
     private int keyRange;
     private ListState<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> phyOuters;
+    private ListStateDescriptor<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> phyOutersDesc;
     private MapState<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> mappingGroupsToNodes;
     private OutputTag<Tuple2<Integer, HashMap<Integer, Tuple3<Long, Integer, Double[]>>>> sideLCentroids;
     private OutputTag<Tuple3<Long, Integer, Integer>> sideLPartitions;
@@ -49,6 +50,10 @@ public class AdaptivePartitionerCompanion implements Serializable {
 
     public ListState<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> getPhyOuters() {
         return phyOuters;
+    }
+
+    public ListStateDescriptor<Tuple8<Integer, String, Integer, Long, Long, Integer, Double[], String>> getPhyOutersDesc() {
+        return phyOutersDesc;
     }
 
     public MapState<Integer, Tuple2<Tuple3<Long, Integer, Double[]>, Integer>> getMappingGroupsToNodes() {
@@ -78,7 +83,7 @@ public class AdaptivePartitionerCompanion implements Serializable {
     }
 
     void open(Configuration config, AbstractRichFunction adaptivePartitioner){
-        ListStateDescriptor<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>> phyOutersDesc =
+        phyOutersDesc =
                 new ListStateDescriptor<Tuple8<Integer,String,Integer,Long, Long,Integer,Double[],String>>(
                         "phyOuters",
                         TypeInformation.of(new TypeHint<Tuple8<Integer, String, Integer, Long, Long, Integer, Double[], String>>() {})
