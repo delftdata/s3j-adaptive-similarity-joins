@@ -1,17 +1,5 @@
 # onlinePartitioningForSsj
 
-## Submodules
-
-This project has two submodules:
-- Coordinator
-- Monitor
-
-To initialize them properly, perform the following two commands after cloning:
-```
-git submodule init
-git submodule update
-```
-
 ## Kubernetes Minikube Setup Instructions
 
 ### Requirements
@@ -81,3 +69,10 @@ curl http://<COORDINATOR_IP>:5000/setup
 ```
 
 Remember to first call `setup` in case the flink cluster is fresh, so it has the jars needed for the jobs. Then you may call the `start` route to start the join job.
+
+
+## Running S<sup>3</sup>J and the experiments
+
+With access to a Kubernetes cluster, you can setup all the needed components by running the start-everything.sh script within /online_partitioning_for_ssj/kubernetes.
+
+To run experiments the run_in_parts.sh scripts within /online_partitioning_for_ssj/kubernetes can be used. You will need to provided the configuration details through an experiments.txt file.
